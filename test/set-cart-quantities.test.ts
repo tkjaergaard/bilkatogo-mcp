@@ -164,6 +164,24 @@ test("set_cart_quantities records an item Bilka rejected at once, without retryi
   expect(item.error).not.toMatch(/temporary/i);
 });
 
+test("set_cart_quantities records an item at once, without retrying, when Bilka can't be reached", async () => {
+  const { callTool, bilka, sleeps } = await connect(withLoginToken);
+  bilka.cart = groceryCart();
+  bilka.unreachable("shop.ChangeLineCount");
+
+  const result = await callTool("set_cart_quantities", {
+    items: [{ product_id: "199126", quantity: 4 }],
+  });
+
+  expect(result.isError).toBe(false);
+  expect(bilka.calls("shop.ChangeLineCount")).toHaveLength(1);
+  expect(sleeps).toEqual([]);
+  const [item] = result.json.items;
+  expect(item).toMatchObject({ status: "failed", attempts: 1 });
+  expect(item.error).toMatch(/could not reach Bilka/);
+  expect(item.error).not.toMatch(/Bilka rejected/);
+});
+
 test("set_cart_quantities carries on past a failed item", async () => {
   const { callTool, bilka } = await connect(withLoginToken);
   bilka.cart = groceryCart();
@@ -361,18 +379,56 @@ test("set_cart_quantities stops at an expired login instead of failing every ite
       requested_quantity: 0,
       status: "failed",
       attempts: 0,
-      error: expect.stringMatching(/not attempted/i),
+      error: expect.stringMatching(/not attempted.*login/i),
     },
     {
       product_id: "19753",
       requested_quantity: 1,
       status: "failed",
       attempts: 0,
-      error: expect.stringMatching(/not attempted/i),
+      error: expect.stringMatching(/not attempted.*login/i),
     },
   ]);
   expect(result.json).toMatchObject({ ok: 0, failed: 3, cart: null });
   expect(result.json.cart_error).toMatch(/isn't logged in/);
+});
+
+test("set_cart_quantities stops when an item gives up on HTTP 429, so the rest don't push into the rate limit", async () => {
+  const { callTool, bilka, sleeps } = await connect(withLoginToken);
+  bilka.cart = groceryCart();
+  bilka.failTimes("shop.ChangeLineCount", 4, 429);
+
+  const result = await callTool("set_cart_quantities", {
+    items: [
+      { product_id: "199126", quantity: 3 },
+      { product_id: "142207", quantity: 0 },
+      { product_id: "19753", quantity: 1 },
+    ],
+  });
+
+  expect(result.isError).toBe(false);
+  expect(bilka.calls("shop.ChangeLineCount")).toHaveLength(4);
+  expect(sleeps).toHaveLength(3);
+  const [first, ...rest] = result.json.items;
+  expect(first).toMatchObject({ product_id: "199126", status: "failed", attempts: 4 });
+  expect(first.error).toMatch(/HTTP 429/);
+  expect(rest).toEqual([
+    {
+      product_id: "142207",
+      requested_quantity: 0,
+      status: "failed",
+      attempts: 0,
+      error: expect.stringMatching(/not attempted.*rate limit/i),
+    },
+    {
+      product_id: "19753",
+      requested_quantity: 1,
+      status: "failed",
+      attempts: 0,
+      error: expect.stringMatching(/not attempted.*rate limit/i),
+    },
+  ]);
+  expect(result.json).toMatchObject({ ok: 0, failed: 3 });
 });
 
 test("set_cart_quantities without a configured login sends nothing to the shop", async () => {

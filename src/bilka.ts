@@ -11,6 +11,7 @@ import {
   toOrderHistoryPage,
 } from "./orders.ts";
 import { scrubPersonalData } from "./scrub.ts";
+import { isRecord, text } from "./values.ts";
 
 export const ALGOLIA_APP_ID = "F9VBJLR1BK";
 // The public, search-only key bilkatogo.dk ships to every browser.
@@ -172,9 +173,9 @@ export type LineChange = {
 export class BilkaError extends Error {
   readonly status: number | undefined;
   /**
-   * True for transport failures (timeout, unreachable, HTTP 429 or 5xx),
-   * where the same request may succeed later. False when Bilka answered and
-   * rejected it, which a retry won't change.
+   * True for a timeout, HTTP 429 or HTTP 5xx, where the same request may
+   * succeed after a short wait. False otherwise: Bilka rejected the request,
+   * or couldn't be reached at all.
    */
   readonly retryable: boolean;
 
@@ -201,7 +202,21 @@ export class NotLoggedInError extends BilkaError {
   }
 }
 
-/** Sends one request with the standard timeout. Network failures become a BilkaError. */
+/**
+ * Bilka couldn't be reached at all (DNS failure, connection refused). Not
+ * retried: it rarely clears up within a retry's wait.
+ */
+export class UnreachableError extends BilkaError {
+  constructor(what: string, cause: unknown) {
+    super(`${what} failed: could not reach Bilka`, { cause });
+    this.name = "UnreachableError";
+  }
+}
+
+/**
+ * Sends one request with the standard timeout. A timeout becomes a retryable
+ * BilkaError, any other network failure an UnreachableError.
+ */
 async function send(
   fetch: typeof globalThis.fetch,
   what: string,
@@ -211,11 +226,10 @@ async function send(
   try {
     return await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   } catch (error) {
-    const timedOut = error instanceof DOMException && error.name === "TimeoutError";
-    throw new BilkaError(timedOut ? `${what} timed out` : `${what} failed: could not reach Bilka`, {
-      retryable: true,
-      cause: error,
-    });
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new BilkaError(`${what} timed out`, { retryable: true, cause: error });
+    }
+    throw new UnreachableError(what, error);
   }
 }
 
@@ -225,6 +239,18 @@ async function readJson(what: string, response: Response): Promise<unknown> {
   } catch (error) {
     throw new BilkaError(`${what} answered with something that isn't JSON`, { cause: error });
   }
+}
+
+/** The decoded answer of an HTTP 2xx; any other status becomes a BilkaError. */
+async function okJson(what: string, response: Response): Promise<unknown> {
+  if (!response.ok) {
+    const { status } = response;
+    throw new BilkaError(`${what} failed with HTTP ${status}`, {
+      status,
+      retryable: status === 429 || status >= 500,
+    });
+  }
+  return readJson(what, response);
 }
 
 /** The outcome of a Gigya call: Gigya reports errors in the body as well as the status. */
@@ -295,15 +321,7 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
   const { fetch, session } = options;
 
   async function requestJson(what: string, url: string, init: RequestInit): Promise<unknown> {
-    const response = await send(fetch, what, url, init);
-    if (!response.ok) {
-      const { status } = response;
-      throw new BilkaError(`${what} failed with HTTP ${status}`, {
-        status,
-        retryable: status === 429 || status >= 500,
-      });
-    }
-    return readJson(what, response);
+    return okJson(what, await send(fetch, what, url, init));
   }
 
   /**
@@ -320,15 +338,31 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
   ): Promise<Record<string, unknown>> {
     for (let attempt = 1; ; attempt++) {
       const jwt = await session.jwt();
-      const data = await requestJson(what, shopUrl(endpoint, params), {
+      const answer = await shopAnswer(what, shopUrl(endpoint, params), {
         ...init,
         headers: { ...(init.headers as Record<string, string>), jwt_token: jwt },
       });
-      if (!isRecord(data)) throw new BilkaError(`${what} answered with something unexpected`);
-      if (!isNotLoggedIn(data)) return scrubPersonalData(data) as Record<string, unknown>;
+      if (answer !== NOT_LOGGED_IN) return answer;
       if (attempt === 2) throw new NotLoggedInError(what);
       session.rejected(jwt);
     }
+  }
+
+  /** One shop call: its scrubbed answer, or NOT_LOGGED_IN. */
+  async function shopAnswer(
+    what: string,
+    url: string,
+    init: RequestInit,
+  ): Promise<Record<string, unknown> | typeof NOT_LOGGED_IN> {
+    const response = await send(fetch, what, url, init);
+    if (response.status === 401 || response.status === 403) return NOT_LOGGED_IN;
+    const data = await okJson(what, response);
+    if (!isRecord(data)) throw new BilkaError(`${what} answered with something unexpected`);
+    if (isNotLoggedIn(data)) return NOT_LOGGED_IN;
+    if (isShopError(data)) {
+      throw new BilkaError(`${what} failed: Bilka refused the request (code ${data.code})`);
+    }
+    return scrubPersonalData(data) as Record<string, unknown>;
   }
 
   /** A shop API URL. The website adds `u=w` to every shop call, so do we. */
@@ -414,6 +448,8 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
 
     async getOrderHistory({ offset, limit }) {
       // POST, as the website and nickknissen send it (docs/research.md §3).
+      // `muah: "1"` is sent because the website sends it; what it means is
+      // unconfirmed (orders carry a boolean `muah` field too).
       const data = await shopJson(
         "Order history",
         "v7/OrderHistory",
@@ -446,21 +482,30 @@ function toLineChange(what: string, productId: string, data: Record<string, unkn
   };
 }
 
-function text(value: unknown): string | null {
-  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
-}
+/** The shop said the request isn't logged in. */
+const NOT_LOGGED_IN = Symbol("not logged in");
 
 /**
- * The shop's "not logged in" answer: HTTP 200 with a non-zero `code` and a
- * `msg`, e.g. `{code: 1, msg: "Du er ikke logget ind"}`. Unverified shape,
- * from nickknissen/bilkatogo; no live capture of it yet.
+ * The shop's error envelope: HTTP 200 with a non-zero `code` and a `msg`.
+ * Real answers carry the account's `uid` beside their data.
  */
-function isNotLoggedIn(data: Record<string, unknown>): boolean {
+function isShopError(
+  data: Record<string, unknown>,
+): data is Record<string, unknown> & { code: number; msg: string } {
   return typeof data.code === "number" && data.code !== 0 && typeof data.msg === "string";
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+/**
+ * The shop's "not logged in" answer, as the reference clients detect it: the
+ * error envelope with `code: 1` (`{code: 1, msg: "Du er ikke logget ind"}`,
+ * nickknissen/bilkatogo) or with a `uid` of 0 or less (`uid: -1`,
+ * stigvoss/bilkatogo-mcp). Other errors carry the account's own uid. HTTP 401
+ * and 403 count too (see `shopAnswer`). Unconfirmed live (docs/research.md §3).
+ */
+function isNotLoggedIn(data: Record<string, unknown>): boolean {
+  if (!isShopError(data)) return false;
+  const uid = Number(data.uid);
+  return data.code === 1 || (data.uid !== undefined && Number.isFinite(uid) && uid <= 0);
 }
 
 /** The array under `key` in a decoded response, or a BilkaError saying what was missing. */

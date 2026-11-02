@@ -49,6 +49,10 @@ test("get_order_history lists each order's id, dates, status, total and preview 
         ordered_total: 1009.34,
         item_count: 34,
         preview: "Pitabrød, Tun i vand, Agurk øko, Hjertesalat øko",
+        name: "[personal data removed]",
+        address: "[personal data removed]",
+        zipcity: "[personal data removed]",
+        pickupzone: "[personal data removed]",
       },
       {
         order_id: "900000000002",
@@ -60,6 +64,10 @@ test("get_order_history lists each order's id, dates, status, total and preview 
         ordered_total: 1185.95,
         item_count: 45,
         preview: "Chiliflager øko, Basilikum øko, Grovkornet sennep,",
+        name: "[personal data removed]",
+        address: "[personal data removed]",
+        zipcity: "[personal data removed]",
+        pickupzone: "[personal data removed]",
       },
     ],
   });
@@ -174,6 +182,37 @@ test("get_order_history lets no personal data through, however deeply it's neste
   // down, in each order's pickupzone.
   expect(JSON.stringify(bilka.orders)).toContain("FAKE-PICKUP-9876");
   for (const value of PERSONAL_VALUES) expect(result.text).not.toContain(value);
+});
+
+test("get_order_history keeps each order's name, address and pickup point as markers", async () => {
+  const { callTool } = await connect(withLoginToken);
+
+  const result = await callTool("get_order_history");
+
+  // Replaced rather than deleted, so the model can see the order had them.
+  const marker = "[personal data removed]";
+  for (const order of result.json.orders) {
+    expect(order).toMatchObject({
+      name: marker,
+      address: marker,
+      zipcity: marker,
+      pickupzone: marker,
+    });
+  }
+});
+
+test("a name next to an address is a person's name, whatever the address key's case", async () => {
+  const { callTool, bilka } = await connect(withLoginToken);
+  const [order] = bilka.orders;
+  if (!order) throw new Error("expected an order in the fixture");
+  order.Address = order.address;
+  delete order.address;
+  delete order.zipcity;
+
+  const result = await callTool("get_order_history");
+
+  expect(result.json.orders[0].name).toBe("[personal data removed]");
+  expect(result.text).not.toContain("Test Testesen");
 });
 
 test("get_order_details lets no personal or payment data through", async () => {

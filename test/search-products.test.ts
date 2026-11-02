@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY, type FakeBilka } from "./support/fake-bilka.ts";
 import { connect, STORE_ID } from "./support/harness.ts";
+import { loginFile } from "./support/login-file.ts";
 
 type AlgoliaParams = { query: string; filters: string; hitsPerPage: number };
 
@@ -176,6 +177,48 @@ test("without a configured store, search returns a clear error pointing at the s
   expect(result.text).toContain("BILKATOGO_STORE_ID");
   expect(result.text).toContain("list_stores");
   expect(bilka.requests).toEqual([]);
+});
+
+test("the store id can come from the login file", async () => {
+  const file = await loginFile({ storeId: "1654" });
+  const { callTool, bilka } = await connect({
+    storeId: undefined,
+    credentials: { env: {}, loginFile: file },
+  });
+
+  const result = await callTool("search_products", { query: "skyr" });
+
+  expect(result.isError).toBe(false);
+  expect(result.json.store_id).toBe("1654");
+  expect(sentFilters(bilka)).toContain("isInAssortmentIn:1654");
+});
+
+test("BILKATOGO_STORE_ID wins over the login file's store id", async () => {
+  const file = await loginFile({ storeId: "1654" });
+  const { callTool, bilka } = await connect({
+    storeId: undefined,
+    credentials: { env: { BILKATOGO_STORE_ID: "1653" }, loginFile: file },
+  });
+
+  const result = await callTool("search_products", { query: "skyr" });
+
+  expect(result.json.store_id).toBe("1653");
+  expect(sentFilters(bilka)).toContain("isInAssortmentIn:1653");
+});
+
+test("the login file is read for the store id only when a tool needs the store", async () => {
+  // Readable by others, so reading it leaves a warning behind.
+  const file = await loginFile({ storeId: "1654" }, 0o644);
+  const { callTool, warnings } = await connect({
+    storeId: undefined,
+    credentials: { env: {}, loginFile: file },
+  });
+
+  expect((await callTool("list_stores")).isError).toBe(false);
+  expect(warnings).toEqual([]);
+
+  expect((await callTool("search_products", { query: "skyr" })).isError).toBe(false);
+  expect(warnings.join("\n")).toContain("chmod 600");
 });
 
 test("a store id that isn't a number is rejected before anything is sent", async () => {

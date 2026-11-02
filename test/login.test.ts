@@ -1,19 +1,7 @@
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { expect, onTestFinished, test } from "vitest";
+import { expect, test } from "vitest";
 import { JWT, LOGIN_TOKEN } from "./support/fake-bilka.ts";
 import { connect } from "./support/harness.ts";
-
-/** A login file in a fresh temp dir, mode 600 unless told otherwise. */
-async function loginFile(contents: unknown, mode = 0o600): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "bilka-mcp-login-"));
-  onTestFinished(() => rm(dir, { recursive: true, force: true }));
-  const file = join(dir, "login.json");
-  await writeFile(file, JSON.stringify(contents));
-  await chmod(file, mode);
-  return file;
-}
+import { loginFile } from "./support/login-file.ts";
 
 test("get_cart uses the login token from the private login file when the environment has none", async () => {
   const file = await loginFile({ loginToken: LOGIN_TOKEN });

@@ -41,7 +41,11 @@ test("the JWT exchange accepts the fixture login token and the cart wants its JW
   expect(await (await exchange(LOGIN_TOKEN)).json()).toMatchObject({ errorCode: 0, id_token: JWT });
   expect((await exchange("other-token")).status).toBe(403);
   expect(await (await cart(JWT)).json()).toMatchObject({ stat: { price: 7800 } });
-  expect(await (await cart("other-jwt")).json()).toEqual({ code: 1, msg: "Du er ikke logget ind" });
+  expect(await (await cart("other-jwt")).json()).toEqual({
+    code: 1,
+    msg: "Du er ikke logget ind",
+    uid: -1,
+  });
 });
 
 test("ChangeLineCount replays the capture: product 156353 set to 1, then to 0", async () => {
@@ -78,7 +82,7 @@ test("rejectJwt answers every shop call as not logged in", async () => {
 
   for (const endpoint of ["v6/Cart", "v7/OrderHistory"]) {
     const response = await bilka.fetch(`https://api.bilkatogo.dk/api/shop/${endpoint}?u=w`);
-    expect(await response.json()).toEqual({ code: 1, msg: "Du er ikke logget ind" });
+    expect(await response.json()).toEqual({ code: 1, msg: "Du er ikke logget ind", uid: -1 });
   }
 });
 

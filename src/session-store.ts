@@ -5,17 +5,20 @@
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
-import { configDir } from "./credentials.ts";
+import { configDir, type Env } from "./credentials.ts";
+import { errorCode } from "./values.ts";
 
 export type SessionStore = {
   /** The remembered login token, or undefined when there is none. */
   load(): Promise<string | undefined>;
   /** Remembers a login token that worked. */
   save(loginToken: string): Promise<void>;
+  /** Forgets the remembered login token, e.g. once Gigya has rejected it. */
+  clear(): Promise<void>;
 };
 
 /** `$XDG_CONFIG_HOME/bilka-mcp/session.json`, by default `~/.config/bilka-mcp/session.json`. */
-export function defaultSessionFile(env: Record<string, string | undefined>): string {
+export function defaultSessionFile(env: Env): string {
   return join(configDir(env), "session.json");
 }
 
@@ -62,10 +65,13 @@ export function fileSessionStore(file: string): SessionStore {
         throw new Error(`could not write ${file} (${errorCode(error) ?? "unknown error"})`);
       }
     },
-  };
-}
 
-function errorCode(error: unknown): string | undefined {
-  const code = (error as { code?: unknown } | null)?.code;
-  return typeof code === "string" ? code : undefined;
+    async clear() {
+      try {
+        await rm(file, { force: true });
+      } catch (error) {
+        throw new Error(`could not remove ${file} (${errorCode(error) ?? "unknown error"})`);
+      }
+    },
+  };
 }

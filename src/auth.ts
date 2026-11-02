@@ -34,11 +34,13 @@ export class LoginError extends BilkaError {
  */
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
 
+/** What trying a source gave: a login token to swap for a JWT, or Gigya's rejection. */
+type SourceAttempt = { loginToken: string } | { rejected: GigyaAnswer };
+
 /** One way to get a login token, as named in error messages. */
 type Source = {
   name: string;
-  /** A login token, or Gigya's rejection. */
-  loginToken(): Promise<{ loginToken: string } | { rejected: GigyaAnswer }>;
+  attempt(): Promise<SourceAttempt>;
 };
 
 export function createSession(options: {
@@ -80,6 +82,15 @@ export function createSession(options: {
     }
   }
 
+  async function forget(): Promise<void> {
+    remembered = Promise.resolve(undefined);
+    try {
+      await store?.clear();
+    } catch (error) {
+      warn(`warning: ${messageOf(error)}; a restart will try the rejected login token again`);
+    }
+  }
+
   // Read lazily, source by source: a working remembered token means the
   // credentials are never read.
   async function* sources(): AsyncGenerator<Source> {
@@ -87,7 +98,7 @@ export function createSession(options: {
     if (rememberedToken !== undefined) {
       yield {
         name: "the remembered login token (session file)",
-        loginToken: async () => ({ loginToken: rememberedToken }),
+        attempt: async () => ({ loginToken: rememberedToken }),
       };
     }
     const { loginToken, email, password } =
@@ -99,13 +110,13 @@ export function createSession(options: {
     if (loginToken !== undefined && loginToken !== rememberedToken) {
       yield {
         name: "the pasted login token (BILKATOGO_LOGIN_TOKEN or login.json)",
-        loginToken: async () => ({ loginToken }),
+        attempt: async () => ({ loginToken }),
       };
     }
     if (email && password) {
       yield {
         name: "email and password (BILKATOGO_EMAIL and BILKATOGO_PASSWORD)",
-        loginToken: () => passwordLogin(fetch, email, password),
+        attempt: () => passwordLogin(fetch, email, password),
       };
     }
   }
@@ -113,19 +124,19 @@ export function createSession(options: {
   async function login(): Promise<string> {
     const failures: string[] = [];
     for await (const source of sources()) {
-      const token = await source.loginToken();
-      if ("rejected" in token) {
-        failures.push(`${source.name}: Gigya rejected the login (${describe(token.rejected)})`);
+      const attempt = await source.attempt();
+      if ("rejected" in attempt) {
+        failures.push(`${source.name}: Gigya rejected the login (${describe(attempt.rejected)})`);
         continue;
       }
-      const outcome = await exchangeLoginToken(fetch, token.loginToken);
-      if ("jwt" in outcome) {
-        await remember(token.loginToken);
-        return outcome.jwt;
+      const exchange = await exchangeLoginToken(fetch, attempt.loginToken);
+      if ("jwt" in exchange) {
+        await remember(attempt.loginToken);
+        return exchange.jwt;
       }
-      if ((await loadRemembered()) === token.loginToken) remembered = Promise.resolve(undefined);
+      if ((await loadRemembered()) === attempt.loginToken) await forget();
       failures.push(
-        `${source.name}: Gigya rejected the login token (${describe(outcome.rejected)})`,
+        `${source.name}: Gigya rejected the login token (${describe(exchange.rejected)})`,
       );
     }
     if (failures.length === 0) {

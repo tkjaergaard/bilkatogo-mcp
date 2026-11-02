@@ -2,8 +2,9 @@
 // into model-friendly objects: DKK instead of øre, clear field names, fees
 // apart from groceries. Their input has already been through the privacy scrub.
 
-import { type CartFee, type CartLine, orderLines, type ShopLineGroup, toCartLine } from "./cart.ts";
+import { type CartFee, type CartLine, type ShopLineGroup, splitLines } from "./cart.ts";
 import { kroner } from "./money.ts";
+import { text } from "./values.ts";
 
 /** One past order in the history. */
 export type OrderSummary = {
@@ -26,6 +27,21 @@ export type OrderSummary = {
   preview: string | null;
 };
 
+/**
+ * An order in the history list. Bilka's personal fields stay in, each as the
+ * privacy marker, so the model can see the order had them.
+ */
+export type OrderHistoryEntry = OrderSummary & {
+  /** The customer's name. Always a privacy marker when set. */
+  name: unknown;
+  /** The delivery address. Always a privacy marker when set. */
+  address: unknown;
+  /** Postcode and town. Always a privacy marker when set. */
+  zipcity: unknown;
+  /** The delivery or pickup point. Always a privacy marker when set. */
+  pickupzone: unknown;
+};
+
 export type OrderHistoryPage = {
   currency: "DKK";
   offset: number;
@@ -34,7 +50,7 @@ export type OrderHistoryPage = {
   total_orders: number | null;
   /** The offset of the next page, or null when this is the last one. */
   next_offset: number | null;
-  orders: OrderSummary[];
+  orders: OrderHistoryEntry[];
 };
 
 export type OrderItem = Omit<CartLine, "line_total"> & {
@@ -87,6 +103,13 @@ type ShopOrderSummary = {
   content?: string;
 };
 
+type ShopHistoryOrder = ShopOrderSummary & {
+  name?: unknown;
+  address?: unknown;
+  zipcity?: unknown;
+  pickupzone?: unknown;
+};
+
 type ShopOrderHistory = { offset?: number | string; total?: number | string; orders?: unknown };
 
 type ShopOrder = ShopOrderSummary & {
@@ -111,7 +134,7 @@ export function toOrderHistoryPage(
 ): OrderHistoryPage {
   const history = (data ?? {}) as ShopOrderHistory;
   const orders = Array.isArray(history.orders)
-    ? (history.orders as ShopOrderSummary[]).map(toOrderSummary)
+    ? (history.orders as ShopHistoryOrder[]).map(toOrderHistoryEntry)
     : [];
   const offset = toNumber(history.offset) ?? request.offset;
   const total = toNumber(history.total);
@@ -127,14 +150,14 @@ export function toOrderHistoryPage(
 }
 
 export function toOrderDetails(order: ShopOrder): OrderDetails {
-  const items: OrderItem[] = [];
-  const fees: CartFee[] = [];
-  for (const { orderline, group, isFee } of orderLines(order.lines)) {
-    const { line_total, ...line } = toCartLine(orderline, group);
-    if (isFee) fees.push({ name: line.name, amount: line_total });
-    else
-      items.push({ ...line, price_paid: line_total, offer: text(orderline.product?.cpOfferMsg) });
-  }
+  const { items, fees } = splitLines(
+    order.lines,
+    ({ line_total, ...line }, orderline): OrderItem => ({
+      ...line,
+      price_paid: line_total,
+      offer: text(orderline.product?.cpOfferMsg),
+    }),
+  );
   const summary = toOrderSummary(order);
   return {
     currency: "DKK",
@@ -159,6 +182,16 @@ export function toOrderDetails(order: ShopOrder): OrderDetails {
   };
 }
 
+function toOrderHistoryEntry(order: ShopHistoryOrder): OrderHistoryEntry {
+  return {
+    ...toOrderSummary(order),
+    name: order.name ?? null,
+    address: order.address ?? null,
+    zipcity: order.zipcity ?? null,
+    pickupzone: order.pickupzone ?? null,
+  };
+}
+
 function toOrderSummary(order: ShopOrderSummary): OrderSummary {
   return {
     order_id: String(order.orderId ?? ""),
@@ -171,10 +204,6 @@ function toOrderSummary(order: ShopOrderSummary): OrderSummary {
     item_count: order.totalProductAmount ?? null,
     preview: text(order.content),
   };
-}
-
-function text(value: string | undefined): string | null {
-  return value?.trim() || null;
 }
 
 /** Bilka sends some counts as strings (`limit: "5"`). */

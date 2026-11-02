@@ -72,7 +72,7 @@ Differences from the community code:
 - **OrderHistory works as `POST`**, as nickknissen sends it. stigvoss's `GET` wasn't tried.
 - All prices, totals and fees are in øre, as in Algolia. For example, `orderedPrice: 100934` is 1.009,34 kr.
 
-Not captured: a shop answer to an expired or rejected JWT. The fake's "not logged in" answer still comes from nickknissen's code.
+Not captured: a shop answer to an expired or rejected JWT, so the logged-out shape is **still unconfirmed live**. The server follows the two reference clients: it counts HTTP 401 or 403, or the HTTP 200 envelope `{code, msg}` with `code: 1` (nickknissen: `{"code": 1, "msg": "Du er ikke logget ind"}`) or a `uid` of 0 or less (stigvoss: `uid: -1`), as "not logged in", and then refreshes the JWT and retries once. Any other `{code ≠ 0, msg}` envelope is an ordinary error with no re-login (stigvoss notes such errors, e.g. "order not found", carry the account's own `uid`). The fake answers `{"code": 1, "msg": "Du er ikke logget ind", "uid": -1}`. Check this against a capture when one turns up.
 
 **Personal-data fields.** These must go through the privacy scrub:
 

@@ -6,7 +6,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, onTestFinished, test } from "vitest";
 import { fileSessionStore } from "../src/session-store.ts";
-import { EMAIL, GIGYA_API_KEY, JWT, LOGIN_TOKEN, PASSWORD } from "./support/fake-bilka.ts";
+import {
+  EMAIL,
+  GIGYA_API_KEY,
+  JWT,
+  jsonResponse,
+  LOGIN_TOKEN,
+  PASSWORD,
+} from "./support/fake-bilka.ts";
 import { connect } from "./support/harness.ts";
 
 const withPassword = {
@@ -24,6 +31,9 @@ function memoryStore(remembered?: string) {
     async save(loginToken: string) {
       saved.push(loginToken);
       remembered = loginToken;
+    },
+    async clear() {
+      remembered = undefined;
     },
   };
 }
@@ -198,6 +208,24 @@ test("the session file holds the working token, readable only by its owner, writ
   expect(restarted.bilka.calls("gigya.getJWT")[0]?.form().get("login_token")).toBe(LOGIN_TOKEN);
 });
 
+test("a remembered token Gigya rejects is cleared from the session file, so a restart doesn't try it first", async () => {
+  const dir = await tempDir();
+  const file = join(dir, "session.json");
+  await writeFile(file, JSON.stringify({ loginToken: "stale-token" }), { mode: 0o600 });
+  const first = await connect({ credentials: { env: {} }, sessionStore: fileSessionStore(file) });
+  expect((await first.callTool("get_cart")).isError).toBe(true);
+
+  const restarted = await connect({
+    credentials: { env: { BILKATOGO_LOGIN_TOKEN: LOGIN_TOKEN } },
+    sessionStore: fileSessionStore(file),
+  });
+  expect((await restarted.callTool("get_cart")).isError).toBe(false);
+
+  expect(restarted.bilka.calls("gigya.getJWT").map((r) => r.form().get("login_token"))).toEqual([
+    LOGIN_TOKEN,
+  ]);
+});
+
 test("when the session file can't be written, the server warns and carries on", async () => {
   const dir = await tempDir();
   // A regular file where the directory should be: the write fails with ENOTDIR.
@@ -282,4 +310,41 @@ test("a shop call still rejected after the refresh fails without a second retry"
   for (const secret of [LOGIN_TOKEN, JWT, EMAIL, PASSWORD]) {
     expect(result.text).not.toContain(secret);
   }
+});
+
+test.each([401, 403])(
+  "an HTTP %i from the shop counts as 'not logged in': refresh once, retry once",
+  async (status) => {
+    const { callTool, bilka } = await connect(withPassword);
+    bilka.failTimes("shop.Cart", 1, status);
+
+    const result = await callTool("get_cart");
+
+    expect(result.isError).toBe(false);
+    expect(bilka.calls("shop.Cart")).toHaveLength(2);
+    expect(bilka.calls("gigya.getJWT")).toHaveLength(2);
+  },
+);
+
+test("the logged-out shape with uid -1 also triggers the refresh", async () => {
+  const { callTool, bilka } = await connect(withPassword);
+  bilka.script("shop.Cart", () => jsonResponse({ code: 7, msg: "Session udløbet", uid: -1 }));
+
+  const result = await callTool("get_cart");
+
+  expect(result.isError).toBe(false);
+  expect(bilka.calls("gigya.getJWT")).toHaveLength(2);
+});
+
+test("another shop error with the account's own uid is an error, not a reason to log in again", async () => {
+  const { callTool, bilka } = await connect(withPassword);
+  bilka.script("shop.Cart", () => jsonResponse({ code: 2, msg: "Noget gik galt", uid: 1000001 }));
+
+  const result = await callTool("get_cart");
+
+  expect(result.isError).toBe(true);
+  expect(result.text).not.toMatch(/logged in/i);
+  expect(result.text).toContain("code 2");
+  expect(bilka.calls("shop.Cart")).toHaveLength(1);
+  expect(bilka.calls("gigya.getJWT")).toHaveLength(1);
 });

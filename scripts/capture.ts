@@ -26,10 +26,13 @@ import {
   REQUEST_TIMEOUT_MS,
   SHOP_HOST,
 } from "../src/bilka.ts";
-import { type Credentials, defaultLoginFile, readCredentials } from "../src/credentials.ts";
-
-// The credential reader is shared with the server; re-exported for the tests.
-export { readCredentials };
+import {
+  type Credentials,
+  defaultLoginFile,
+  type Env,
+  readCredentials,
+} from "../src/credentials.ts";
+import { errorCode, isRecord } from "../src/values.ts";
 
 // Endpoint facts, from docs/research.md §3 and the request shapes in
 // nickknissen/bilkatogo (src/bilkatogo/client.py, const.py) and
@@ -116,7 +119,7 @@ export type Answer = {
   body: unknown;
 };
 
-export function defaultOutDir(env: Record<string, string | undefined>, now: Date): string {
+export function defaultOutDir(env: Env, now: Date): string {
   const cacheHome = env.XDG_CACHE_HOME || join(homedir(), ".cache");
   const stamp = now.toISOString().replace(/[:.]/g, "-");
   return join(cacheHome, "bilka-mcp", "captures", stamp);
@@ -615,19 +618,15 @@ async function checkOutDir(outDir: string, repoRoot: string): Promise<string | u
     const entries = await readdir(outDir);
     if (entries.length > 0) return `${outDir} is not empty; pick a new folder`;
   } catch (error) {
-    if (!(isRecord(error) && error.code === "ENOENT")) {
+    if (errorCode(error) !== "ENOENT") {
       return `cannot use ${outDir} (${errorName(error)})`;
     }
   }
   return undefined;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function errorName(error: unknown): string {
-  return isRecord(error) && typeof error.code === "string" ? error.code : "error";
+  return errorCode(error) ?? "error";
 }
 
 function errorText(error: unknown): string {

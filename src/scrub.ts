@@ -78,15 +78,17 @@ const PERSONAL_FIELDS = new Set(
 );
 
 // `name` is a person's name on an order or address (next to `address` or
-// `zipcity`) and a product's name everywhere else.
-const PERSON_CONTEXT_KEYS = ["address", "zipcity", "recipient_name"];
+// `zipcity`, in any case) and a product's name everywhere else.
+const PERSON_CONTEXT_KEYS = new Set(["address", "zipcity", "recipient_name"]);
 
 /** A deep copy of `value` with every personal-data field replaced by REDACTED. */
 export function scrubPersonalData(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(scrubPersonalData);
   if (typeof value !== "object" || value === null) return value;
   const record = value as Record<string, unknown>;
-  const nameIsPersonal = PERSON_CONTEXT_KEYS.some((key) => key in record);
+  const nameIsPersonal = Object.keys(record).some((key) =>
+    PERSON_CONTEXT_KEYS.has(key.toLowerCase()),
+  );
   const out: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(record)) {
     const lower = key.toLowerCase();

@@ -88,13 +88,7 @@ export type ShopOrderLine = {
 
 export function toCart(data: unknown): Cart {
   const cart = (data ?? {}) as ShopCart;
-  const lines: CartLine[] = [];
-  const fees: CartFee[] = [];
-  for (const { orderline, group, isFee } of orderLines(cart.lines)) {
-    const shaped = toCartLine(orderline, group);
-    if (isFee) fees.push({ name: shaped.name, amount: shaped.line_total });
-    else lines.push(shaped);
-  }
+  const { items: lines, fees } = splitLines(cart.lines, (line) => line);
   return {
     currency: "DKK",
     total: kroner(cart.stat?.price),
@@ -126,23 +120,32 @@ export function summariseCart(cart: Cart): CartSummary {
 }
 
 /**
- * Every order line in Bilka's nested groups, in order, with its group's
- * heading. Lines under "Services" are fees, not groceries. Carts and orders
- * share this shape.
+ * Splits the order lines in Bilka's nested groups (`lines[].lines[].orderlines[]`)
+ * into groceries and fees, in order. Lines under "Services" are fees; every
+ * other line is shaped by `toItem`, from its cart-line form and Bilka's raw
+ * line. Carts and orders share this shape.
  */
-export function* orderLines(
+export function splitLines<T>(
   groups: ShopLineGroup[] | undefined,
-): Generator<{ orderline: ShopOrderLine; group: string | null; isFee: boolean }> {
+  toItem: (line: CartLine, orderline: ShopOrderLine) => T,
+): { items: T[]; fees: CartFee[] } {
+  const items: T[] = [];
+  const fees: CartFee[] = [];
   for (const group of groups ?? []) {
     const headline = group.headline?.trim() || null;
     const isFee = headline?.toLowerCase() === SERVICES_HEADLINE;
     for (const line of group.lines ?? []) {
-      for (const orderline of line.orderlines ?? []) yield { orderline, group: headline, isFee };
+      for (const orderline of line.orderlines ?? []) {
+        const shaped = toCartLine(orderline, headline);
+        if (isFee) fees.push({ name: shaped.name, amount: shaped.line_total });
+        else items.push(toItem(shaped, orderline));
+      }
     }
   }
+  return { items, fees };
 }
 
-export function toCartLine(orderline: ShopOrderLine, group: string | null): CartLine {
+function toCartLine(orderline: ShopOrderLine, group: string | null): CartLine {
   const product = orderline.product ?? {};
   const units = product.units;
   const measure = product.unitsOfMeasure?.trim();

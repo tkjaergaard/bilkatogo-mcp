@@ -17,7 +17,7 @@ It speaks MCP 2026-07-28 and still serves clients that use the older `initialize
 | `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves. | no |
 | `get_cart` | Reads your cart: each line's product, quantity, unit price and line total, the cart total, item count and fees, in DKK. A compact summary by default; `full` adds brand, size, delivery slot and the distance to Bilka's minimum order. | yes |
 | `set_cart_quantity` | Sets one product's cart line to an exact quantity, from 0 to 50 (0 removes the line). Returns the line as Bilka reports it, Bilka's note on the change when there is one, and the cart afterwards. Your MCP client sees it flagged destructive, so it can ask you first. | yes |
-| `set_cart_quantities` | Sets up to 50 cart lines in one call, e.g. a recipe or a repeat of a past order. Each quantity is exact, from 0 to 50 (0 removes the line), and each product may appear once. Items are applied in order; timeouts, rate limits and Bilka server errors are retried up to three times with growing waits, and a failed item doesn't stop the rest. Returns each item's outcome and the cart afterwards (summary, or `full`). Flagged destructive. | yes |
+| `set_cart_quantities` | Sets up to 50 cart lines in one call, e.g. a recipe or a repeat of a past order. Each quantity is exact, from 0 to 50 (0 removes the line), and each product may appear once. Items are applied in order; timeouts, rate limits (HTTP 429) and Bilka server errors (HTTP 5xx) are retried up to three times with growing waits, and a failed item doesn't stop the rest, with two exceptions: a failed login, and an item that still gets HTTP 429 after its retries, stop the batch so the rest don't fail too or push further into Bilka's rate limit. The items after it are reported as failed with 0 attempts and a "not attempted" reason. Other network failures (Bilka unreachable) aren't retried. Returns each item's outcome and the cart afterwards (summary, or `full`). Flagged destructive. | yes |
 | `get_order_history` | Lists your past orders, newest first and a page at a time: order id, order date, delivery date and slot, status, total in DKK, item count and a short preview of item names. | yes |
 | `get_order_details` | Everything in one past order: each item's name, brand, size, quantity, price paid and offer text, the fees and totals, and the delivery or pickup slot. The product ids work with the cart tools, so you can buy an order again. | yes |
 
@@ -35,7 +35,7 @@ npm install
 
 ## Choose your store
 
-Search only shows what one Bilka store carries, so the server needs that store's id in `BILKATOGO_STORE_ID`, for example `1654` for Bilka Odense.
+Search only shows what one Bilka store carries, so the server needs that store's id, for example `1654` for Bilka Odense. Set it in `BILKATOGO_STORE_ID`, or as `"storeId"` in `~/.config/bilka-mcp/login.json` (see [Credential options](#credential-options)). The environment wins when both are set. The server reads it only when a tool needs the store, and reads the file at most once per run, so restart it after a change.
 
 To find your store's id, ask your assistant to run `list_stores` ("which Bilka stores are there?"). It works before a store is configured and needs no login. Without a store id, `search_products` answers with an error that says how to set one.
 
@@ -55,12 +55,12 @@ Each can come from the environment or from `~/.config/bilka-mcp/login.json` (und
 ```sh
 mkdir -p ~/.config/bilka-mcp
 (umask 077 && cat > ~/.config/bilka-mcp/login.json) <<'JSON'
-{ "email": "you@example.com", "password": "PASSWORD", "loginToken": "OPTIONAL-PASTED-TOKEN" }
+{ "email": "you@example.com", "password": "PASSWORD", "loginToken": "OPTIONAL-PASTED-TOKEN", "storeId": "1654" }
 JSON
 chmod 600 ~/.config/bilka-mcp/login.json  # in case the file already existed
 ```
 
-Leave out the keys you don't use.
+Leave out the keys you don't use. `storeId` is optional and isn't a secret; it's there so the whole setup can live in one file.
 
 ### How the server logs in
 
@@ -74,7 +74,7 @@ The login token is swapped for a 24-hour session (a JWT), kept in memory and ren
 
 ### The session file
 
-A login token that works is saved to `~/.config/bilka-mcp/session.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"loginToken": "…"}`, so a restart doesn't need a fresh password login. The file is written atomically (a temp file renamed into place) with mode 600, readable only by you. If it can't be written, the server writes a warning to stderr and carries on; it will log in again after the next restart. Delete the file to make the server forget the login.
+A login token that works is saved to `~/.config/bilka-mcp/session.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"loginToken": "…"}`, so a restart doesn't need a fresh password login. The file is written atomically (a temp file renamed into place) with mode 600, readable only by you. If it can't be written, the server writes a warning to stderr and carries on; it will log in again after the next restart. When Gigya rejects the remembered token, the server deletes the file too, so the next restart doesn't try that token first. Delete the file yourself to make the server forget the login.
 
 ## Register it in Claude Code
 
@@ -88,7 +88,7 @@ Then ask Claude something like "find havremælk". Add `-s user` to make the serv
 
 The store id isn't a secret, so it's fine in the MCP config. Your password and login token are: keep them in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
 
-Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.ts` over stdio with `BILKATOGO_STORE_ID` set.
+Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.ts` over stdio with `BILKATOGO_STORE_ID` set (or `storeId` in the login file).
 
 ## Development
 

@@ -193,8 +193,22 @@ export class FakeBilka {
   }
 
   /**
+   * Make the next `times` requests for the route fail as `fetch` does when the
+   * host can't be reached (DNS failure, connection refused).
+   */
+  unreachable(pattern: RoutePattern, times = 1): this {
+    return this.script(
+      pattern,
+      () => {
+        throw new TypeError("fetch failed", { cause: new Error("connect ECONNREFUSED") });
+      },
+      times,
+    );
+  }
+
+  /**
    * Answer shop calls as Bilka does when the JWT is missing, expired or
-   * rejected. Unverified shape, from nickknissen/bilkatogo; confirm against a
+   * rejected. Unverified shape (see NOT_LOGGED_IN); confirm against a
    * captured response.
    */
   rejectJwt(times = Number.POSITIVE_INFINITY): this {
@@ -444,8 +458,11 @@ export class FakeBilka {
   }
 }
 
-/** The shop's answer without a valid JWT. Unverified shape, from nickknissen/bilkatogo. */
-const NOT_LOGGED_IN = { code: 1, msg: "Du er ikke logget ind" };
+/**
+ * The shop's answer without a valid JWT. Unverified shape: `code` and `msg`
+ * from nickknissen/bilkatogo, `uid: -1` from stigvoss/bilkatogo-mcp.
+ */
+const NOT_LOGGED_IN = { code: 1, msg: "Du er ikke logget ind", uid: -1 };
 
 function checkAlgoliaKey(request: RecordedRequest): Response | undefined {
   if (

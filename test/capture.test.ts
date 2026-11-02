@@ -9,10 +9,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   REPO_ROOT,
   classifyGigyaLogin,
-  readCredentials,
   runCapture,
   type CaptureOptions,
 } from "../scripts/capture.ts";
+import { readCredentials } from "../src/credentials.ts";
 
 const EMAIL = "kunde@example.com";
 const PASSWORD = "hunter2-very-secret";
