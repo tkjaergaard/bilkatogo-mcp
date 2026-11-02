@@ -119,7 +119,8 @@ Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.t
 | `npm run typecheck` | Type-checks with TypeScript 7. Nothing is emitted. |
 | `npm run lint` | Lints with oxlint. |
 | `npm run format` | Formats with oxfmt (`format:check` only checks). |
-| `npm run check` | All of the above. It must pass before a change counts as done. |
+| `npm run deadcode` | Finds unused files, exports, types, class members and dependencies, and import cycles, with Fallow (`.fallowrc.json`). Any finding fails. |
+| `npm run check` | All of the above. It must pass before a change counts as done. CI runs it on every push to `main` and every pull request. |
 
 Before changing how the server talks to Bilka, read [docs/research.md](docs/research.md) and [CLAUDE.md](CLAUDE.md).
 

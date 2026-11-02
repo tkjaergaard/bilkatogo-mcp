@@ -32,8 +32,8 @@ export const ALGOLIA_HOST = `https://${ALGOLIA_APP_ID.toLowerCase()}-dsn.algolia
 export const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
 // The website's sort replicas of the product index, "Billigst" and "Laveste
 // enhedspris". Standard replicas: price ranks above text relevance.
-export const ALGOLIA_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_pricesort";
-export const ALGOLIA_UNIT_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_uompricesort";
+const ALGOLIA_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_pricesort";
+const ALGOLIA_UNIT_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_uompricesort";
 
 export const SHOP_HOST = "https://api.bilkatogo.dk";
 

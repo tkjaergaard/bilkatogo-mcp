@@ -77,7 +77,7 @@ type ShopPlace = {
 };
 
 export const HOME_DELIVERY_FACILITY = 8;
-export const HOME_PLACE_ID = "home";
+const HOME_PLACE_ID = "home";
 
 const KINDS: Record<number, PlaceKind> = {
   [HOME_DELIVERY_FACILITY]: "home_delivery",

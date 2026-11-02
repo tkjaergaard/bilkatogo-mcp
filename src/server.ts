@@ -20,7 +20,7 @@ import { type CredentialSources, readStoreId } from "./credentials.ts";
 import type { SessionStore } from "./session-store.ts";
 import type { SettingsStore } from "./settings-store.ts";
 
-export const MCP_PROTOCOL_VERSION = "2026-07-28";
+const MCP_PROTOCOL_VERSION = "2026-07-28";
 
 export type Limits = {
   /** The most results `search_products` returns; larger limits are clamped to this. */
@@ -39,7 +39,7 @@ export type Limits = {
   maxOrderPageSize: number;
 };
 
-export const DEFAULT_LIMITS: Limits = {
+const DEFAULT_LIMITS: Limits = {
   maxSearchResults: 50,
   maxSearchPage: 20,
   maxQuantityPerLine: 50,
