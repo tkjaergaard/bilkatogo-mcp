@@ -57,6 +57,8 @@ Shop    ─► https://api.bilkatogo.dk/api/shop/<ver>/<Endpoint>?u=w   header: 
 Checked live today: Algolia search returns products with no login, and `AvailableDeliveryAddresses` returns 22 pickup points with their store ids (e.g. 1654 Bilka Odense) with no login.
 Login and the cart endpoints have not been tried yet. That needs a real account.
 
+Product details, checked live on 2026-11-02 (one request, no login): `POST .../1/indexes/*/objects` with `{"requests":[{"indexName":"prod_BILKATOGO_PRODUCTS","objectID":"19753","attributesToRetrieve":[...]}]}` answers `{"results":[record]}`. Without `attributesToRetrieve` the record holds only `objectID`, so name the attributes. An unknown id gives `null` in `results` plus a `message` ("ObjectID … does not exist."). Full records carry more than search hits show: `infos` holds the product page's sections (`description`, `ingredients` with allergens in capitals, `nutritional_100`, `product_details`, `productspecification`), each with `items` of type 1 (free text with some HTML) or type 2 (name/value row). There are also `attributes` (labels such as "Europæisk ejerskab"), `energyInfo`, `safetyText(s)`, `safetyIcons` and `imageGUIDs`.
+
 Notes:
 - Prices are in øre, so divide by 100.
 - Search results depend on the store. Without a store id you get products the chosen store doesn't stock.

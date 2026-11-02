@@ -84,8 +84,16 @@ function matches(pattern: RoutePattern, route: RouteName): boolean {
 export class FakeBilka {
   /** Every request received, in order. */
   readonly requests: RecordedRequest[] = [];
-  /** The Algolia product index: product records keyed by `objectID`. */
-  products: Record<string, any>[] = loadFixture("algolia-products.json").hits;
+  /**
+   * The Algolia product index. The search fixture's hits, with full live
+   * records (which carry `infos`: nutrition, ingredients and so on) in place
+   * of their trimmed copies.
+   */
+  products: Record<string, any>[] = replaceById(loadFixture("algolia-products.json").hits, [
+    loadFixture("algolia-object-19753.json"),
+  ]);
+  /** The public delivery-address list (stores and pickup points). */
+  deliveryAddresses: Record<string, any> = loadFixture("available-delivery-addresses.json");
 
   private scripts: Script[] = [];
 
@@ -192,6 +200,11 @@ export class FakeBilka {
 
   private readonly defaultHandlers: Partial<Record<RouteName, Responder>> = {
     "algolia.query": (request) => this.algoliaQuery(request),
+    "algolia.objects": (request) => this.algoliaObjects(request),
+    "shop.AvailableDeliveryAddresses": (request) =>
+      request.method === "GET"
+        ? jsonResponse(this.deliveryAddresses)
+        : jsonResponse({ message: "Method not allowed" }, 405),
   };
 
   /**
@@ -200,12 +213,8 @@ export class FakeBilka {
    * limited by `hitsPerPage` and projected by `attributesToRetrieve`.
    */
   private algoliaQuery(request: RecordedRequest): Response {
-    if (
-      request.headers.get("x-algolia-application-id") !== ALGOLIA_APP_ID ||
-      request.headers.get("x-algolia-api-key") !== ALGOLIA_SEARCH_KEY
-    ) {
-      return jsonResponse({ message: "Invalid Application-ID or API key", status: 403 }, 403);
-    }
+    const denied = checkAlgoliaKey(request);
+    if (denied) return denied;
     const index = decodeURIComponent(request.url.pathname.split("/")[3] ?? "");
     if (index !== ALGOLIA_PRODUCT_INDEX) {
       return jsonResponse({ message: "Index does not exist", status: 404 }, 404);
@@ -232,6 +241,54 @@ export class FakeBilka {
       index,
     });
   }
+
+  /**
+   * Algolia's multi-index object lookup. Like the live index (checked
+   * 2026-11-02), a request without `attributesToRetrieve` gets only the
+   * objectID back, and an unknown objectID gets `null` plus a message.
+   */
+  private algoliaObjects(request: RecordedRequest): Response {
+    const denied = checkAlgoliaKey(request);
+    if (denied) return denied;
+    const { requests } = request.json() as {
+      requests: { indexName: string; objectID: string; attributesToRetrieve?: string[] }[];
+    };
+    const missing: string[] = [];
+    const results = requests.map(({ indexName, objectID, attributesToRetrieve }) => {
+      if (indexName !== ALGOLIA_PRODUCT_INDEX) {
+        throw new Error(`FakeBilka has no Algolia index ${JSON.stringify(indexName)}`);
+      }
+      const product = this.products.find((p) => p.objectID === objectID);
+      if (!product) {
+        missing.push(objectID);
+        return null;
+      }
+      return project(product, attributesToRetrieve ?? []);
+    });
+    return jsonResponse(
+      missing.length === 0
+        ? { results }
+        : { results, message: missing.map((id) => `ObjectID ${id} does not exist. `).join("") },
+    );
+  }
+}
+
+function checkAlgoliaKey(request: RecordedRequest): Response | undefined {
+  if (
+    request.headers.get("x-algolia-application-id") !== ALGOLIA_APP_ID ||
+    request.headers.get("x-algolia-api-key") !== ALGOLIA_SEARCH_KEY
+  ) {
+    return jsonResponse({ message: "Invalid Application-ID or API key", status: 403 }, 403);
+  }
+  return undefined;
+}
+
+function replaceById(
+  records: Record<string, any>[],
+  replacements: Record<string, any>[],
+): Record<string, any>[] {
+  const byId = new Map(replacements.map((record) => [record.objectID, record]));
+  return records.map((record) => byId.get(record.objectID) ?? record);
 }
 
 /**

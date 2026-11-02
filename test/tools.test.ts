@@ -5,6 +5,8 @@ import { connect } from "./support/harness.ts";
 // deliberate change to this test. Later tickets extend it.
 const EXPECTED_TOOLS: Record<string, "read-only" | "destructive"> = {
   search_products: "read-only",
+  get_product_details: "read-only",
+  list_stores: "read-only",
 };
 
 test("the server offers exactly the pinned tools", async () => {
