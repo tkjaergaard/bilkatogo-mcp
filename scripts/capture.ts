@@ -119,7 +119,7 @@ export type Answer = {
   body: unknown;
 };
 
-export function defaultOutDir(env: Env, now: Date): string {
+function defaultOutDir(env: Env, now: Date): string {
   const cacheHome = env.XDG_CACHE_HOME || join(homedir(), ".cache");
   const stamp = now.toISOString().replace(/[:.]/g, "-");
   return join(cacheHome, "bilka-mcp", "captures", stamp);
@@ -546,7 +546,7 @@ function isShopSuccess(answer: Answer | undefined): answer is Answer {
  * decide whether a product is already in the cart without trusting a guessed
  * cart shape: a false match only means the cart change is skipped.
  */
-export function containsValue(value: unknown, target: string): boolean {
+function containsValue(value: unknown, target: string): boolean {
   if (typeof value === "string") return value === target;
   if (typeof value === "number") return String(value) === target;
   if (Array.isArray(value)) return value.some((item) => containsValue(item, target));
@@ -555,7 +555,7 @@ export function containsValue(value: unknown, target: string): boolean {
 }
 
 /** Replaces secret fields and every known secret value with "<secret>". */
-export function maskSecrets(value: unknown, secrets: Set<string>): unknown {
+function maskSecrets(value: unknown, secrets: Set<string>): unknown {
   if (typeof value === "string") return scrubText(value, secrets);
   if (Array.isArray(value)) return value.map((item) => maskSecrets(item, secrets));
   if (isRecord(value)) {

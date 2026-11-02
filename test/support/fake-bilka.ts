@@ -41,7 +41,7 @@ type Script = { pattern: RoutePattern; respond: Responder; remaining: number };
 
 export const ALGOLIA_APP_ID = "F9VBJLR1BK";
 export const ALGOLIA_SEARCH_KEY = "1deaf41c87e729779f7695c00f190cc9";
-export const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
+const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
 /**
  * The website's two sort replicas, "Billigst" and "Laveste enhedspris", and
  * the record attribute the fake sorts each by. Live, the sort key isn't the
@@ -50,7 +50,7 @@ export const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
  * index, they ignore the store's offer, so they differ from the store's price
  * on discounted products and the client's re-sort is tested.
  */
-export const ALGOLIA_SORT_INDEXES: Record<string, string> = {
+const ALGOLIA_SORT_INDEXES: Record<string, string> = {
   prod_r_BILKATOGO_PRODUCT_pricesort: "price",
   prod_r_BILKATOGO_PRODUCT_uompricesort: "unitOfMeasurePrice",
 };
@@ -66,7 +66,7 @@ export const EMAIL = "test@example.com";
 export const PASSWORD = "test-password";
 
 /** Gigya's answer to a wrong email or password. Unverified shape (SAP's error-code list, nickknissen/bilkatogo). */
-export const GIGYA_INVALID_PASSWORD = {
+const GIGYA_INVALID_PASSWORD = {
   errorCode: 403042,
   errorDetails: "invalid loginID or password",
   errorMessage: "Invalid LoginID",
@@ -75,7 +75,7 @@ export const GIGYA_INVALID_PASSWORD = {
 };
 
 /** Gigya's answer to an unknown or expired login token. Unverified shape (SAP's error-code list). */
-export const GIGYA_INVALID_TOKEN = {
+const GIGYA_INVALID_TOKEN = {
   errorCode: 403005,
   errorDetails: "Unauthorized user",
   errorMessage: "Unauthorized user",
@@ -95,7 +95,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
 }
 
 /** What `fetch` throws when its `AbortSignal.timeout()` fires. */
-export function timeoutError(): DOMException {
+function timeoutError(): DOMException {
   return new DOMException("The operation was aborted due to timeout", "TimeoutError");
 }
 
@@ -302,10 +302,9 @@ export class FakeBilka {
    * email and password; otherwise with Gigya's error.
    */
   private gigyaLogin(request: RecordedRequest): Response {
+    const denied = checkGigyaKey(request);
+    if (denied) return denied;
     const form = request.form();
-    if (request.method !== "POST" || form.get("apiKey") !== GIGYA_API_KEY) {
-      return jsonResponse({ errorCode: 400093, errorMessage: "Invalid ApiKey parameter" }, 400);
-    }
     if (form.get("loginID") !== this.email || form.get("password") !== this.password) {
       return jsonResponse(GIGYA_INVALID_PASSWORD, 403);
     }
@@ -534,10 +533,9 @@ export class FakeBilka {
    * (`gigya-jwt.json`) for the known token, otherwise with Gigya's error.
    */
   private gigyaGetJwt(request: RecordedRequest): Response {
+    const denied = checkGigyaKey(request);
+    if (denied) return denied;
     const form = request.form();
-    if (request.method !== "POST" || form.get("apiKey") !== GIGYA_API_KEY) {
-      return jsonResponse({ errorCode: 400093, errorMessage: "Invalid ApiKey parameter" }, 400);
-    }
     if (form.get("login_token") !== this.loginToken) {
       return jsonResponse(GIGYA_INVALID_TOKEN, 403);
     }
@@ -641,6 +639,13 @@ function checkAlgoliaKey(request: RecordedRequest): Response | undefined {
     request.headers.get("x-algolia-api-key") !== ALGOLIA_SEARCH_KEY
   ) {
     return jsonResponse({ message: "Invalid Application-ID or API key", status: 403 }, 403);
+  }
+  return undefined;
+}
+
+function checkGigyaKey(request: RecordedRequest): Response | undefined {
+  if (request.method !== "POST" || request.form().get("apiKey") !== GIGYA_API_KEY) {
+    return jsonResponse({ errorCode: 400093, errorMessage: "Invalid ApiKey parameter" }, 400);
   }
   return undefined;
 }
