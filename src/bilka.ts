@@ -39,7 +39,7 @@ export const SHOP_HOST = "https://api.bilkatogo.dk";
 
 // Sent on every request, so Bilka can see what the traffic is and who to
 // contact. Never a browser's user agent: the server doesn't pose as one.
-const USER_AGENT = `bilka-mcp/${packageJson.version} (+https://github.com/tkjaergaard/bilka-mcp)`;
+export const USER_AGENT = `bilka-mcp/${packageJson.version} (+https://github.com/tkjaergaard/bilka-mcp)`;
 
 export const GIGYA_HOST = "https://accounts.eu1.gigya.com";
 // BilkaToGo's public Gigya site key, the one the website sends.

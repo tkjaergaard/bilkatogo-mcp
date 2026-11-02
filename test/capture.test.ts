@@ -2,6 +2,7 @@
 // What matters most: no secret ever reaches the output or the saved files, the
 // cart is never left changed, and LoginJWT never gets a cookie.
 
+import { readFileSync } from "node:fs";
 import { mkdtemp, readdir, readFile, rm, stat, writeFile, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +14,8 @@ import {
   type CaptureOptions,
 } from "../scripts/capture.ts";
 import { readCredentials } from "../src/credentials.ts";
+
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 const EMAIL = "kunde@example.com";
 const PASSWORD = "hunter2-very-secret";
@@ -131,6 +134,18 @@ async function capture(
 const route = (request: Seen) => `${request.method} ${request.url.pathname}`;
 
 describe("capture script", () => {
+  it("names the project and its version on every request, like the server", async () => {
+    const bilka = fakeBilka();
+    await capture(bilka);
+
+    expect(bilka.requests.length).toBeGreaterThan(0);
+    for (const request of bilka.requests) {
+      expect(request.headers.get("user-agent")).toBe(
+        `bilka-mcp/${version} (+https://github.com/tkjaergaard/bilka-mcp)`,
+      );
+    }
+  });
+
   it("runs every step in order and saves each response", async () => {
     const bilka = fakeBilka();
     const { report, files } = await capture(bilka);

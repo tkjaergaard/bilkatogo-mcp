@@ -25,6 +25,7 @@ import {
   PRODUCT_ID_PATTERN,
   REQUEST_TIMEOUT_MS,
   SHOP_HOST,
+  USER_AGENT,
 } from "../src/bilka.ts";
 import {
   type Credentials,
@@ -186,8 +187,12 @@ export async function runCapture(options: CaptureOptions): Promise<CaptureReport
     report.steps.push(record);
     const started = Date.now();
     try {
+      // The server's User-Agent, so captures look like the traffic they document.
+      const headers = new Headers(init.headers);
+      headers.set("user-agent", USER_AGENT);
       const response = await options.fetch(url, {
         ...init,
+        headers,
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       const text = await response.text();
