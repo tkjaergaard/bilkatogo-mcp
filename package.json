@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Unofficial, private MCP server for BilkaToGo (proof of concept)",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "start": "node src/main.ts",
