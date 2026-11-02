@@ -1,85 +1,118 @@
 # bilkatogo-mcp
 
-An unofficial, private MCP server for [BilkaToGo](https://www.bilkatogo.dk), the Danish grocery shop. It's a local proof of concept: your MCP client starts it over stdio, and it talks to BilkaToGo for you. It isn't affiliated with Bilka or Salling Group.
+Let your AI assistant shop at [BilkaToGo](https://www.bilkatogo.dk): search the catalogue and this week's offers, fill your cart, pick a delivery slot and buy a past order again. You place the order yourself, on the website.
 
-## Disclaimer
+It's an unofficial MCP server that runs locally on your computer. It isn't affiliated with Bilka or Salling Group. Use it with your own account only and at your own risk (see [Disclaimer](#disclaimer)).
 
-bilkatogo-mcp is unofficial and is not affiliated with, endorsed by or supported by Bilka or Salling Group A/S. "Bilka" and "BilkaToGo" are trademarks of Salling Group, used here only to say what the software works with. It talks to BilkaToGo's private web API, the same one the website uses, which can change or stop working at any time.
+## What you can ask
 
-BilkaToGo's and Salling Group's terms don't mention tools like this, and automated use may still conflict with them. Salling Group may deactivate a Salling Group Profile it believes is misused (profile terms §5.5, §9). That profile is also your login for Bilka plus, føtex plus, Netto+ and other Salling services, so losing it affects more than BilkaToGo.
+```txt
+Use Bilka Odense and find havremælk, cheapest per litre first.
+```
 
-**Use it with your own profile only**, at your own risk, and at the pace of one person shopping. Don't run it for someone else or with their login. It never places orders or handles payment. This isn't legal advice.
+```txt
+What's on offer in Mejeri & køl this week?
+```
 
-It speaks MCP 2026-07-28 and still serves clients that use the older `initialize` handshake.
+```txt
+Put everything from my last order in the cart again, but no bananas.
+```
 
-## Tools
+```txt
+Home delivery is sold out on Friday. Switch the cart to pickup in the store and pick a slot Friday afternoon.
+```
 
-| Tool | What it does | Needs login |
-|---|---|---|
-| `search_products` | Searches or browses the catalogue at your store, a page at a time, up to page 20: it's for shopping, not for copying the catalogue. Prices in DKK, with regular price, saving, offer text and offer dates. Only in-stock products by default; can be limited to one category (e.g. "Mejeri & køl > Pålæg"), to this week's Bilka Avisen (the leaflet), to everything on offer, or to the products in one mix offer ("Mix 2 for 35,00"), with or without a search text. Can sort cheapest first by price or by unit price. Each product shows its mix offer, if any. | no |
-| `list_categories` | Lists the shop's category tree, the one in the website's menu, one level at a time, with how many products each category has at your store. Can count only this week's leaflet or only offers, to show where the deals are. Each category works as a `search_products` filter. | no |
-| `get_product_details` | Everything the catalogue holds about one product: size, prices, unit price, category, labels, and ingredients, allergens and nutrition where Bilka publishes them. | no |
-| `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves, plus the store the server uses now. | no |
-| `select_store` | Chooses the store to shop at, by store id or part of a store or pickup-point name ("odense"). When several stores match, it saves nothing and lists them so the assistant can ask you which one. Saved in `settings.json`; it changes only this server's setting, never your Bilka account. | no |
-| `get_cart` | Reads your cart: each line's product, quantity, unit price and line total, the cart total, item count and fees, in DKK, and where and when it goes (home delivery or a pickup place, and the chosen slot). A compact summary by default; `full` adds brand, size and the distance to Bilka's minimum order. | yes |
-| `list_delivery_places` | Lists where your cart can go: home delivery (`"home"`; the address is never shown), pickup in any Bilka store, and the PickUp points, each with the store that packs it and its minimum order. | yes |
-| `set_delivery_place` | Moves the cart to one of those places, e.g. from home delivery to pickup in Bilka Odense. Fees and the minimum order change with it (pickup has no delivery fee), and search follows the cart's store: that store becomes the saved selection, over `BILKATOGO_STORE_ID`. Flagged destructive, so your MCP client can ask you first. | yes |
-| `list_delivery_slots` | Lists the next two weeks of slots at the cart's current place: each day's status (available, sold out, order deadline passed, not open yet) and its slots with the order deadline. Other places have other slots, so to compare, the cart switches place first. | yes |
-| `set_delivery_slot` | Sets the cart's slot by date and start time, after checking it's available. Bilka reserves nothing: a slot can still fill up before you order. It replaces the cart's slot, so it's flagged destructive. | yes |
-| `set_cart_quantity` | Sets one product's cart line to an exact quantity, from 0 to 50 (0 removes the line). Returns the line as Bilka reports it, Bilka's note on the change when there is one, and the cart afterwards. Your MCP client sees it flagged destructive, so it can ask you first. | yes |
-| `set_cart_quantities` | Sets up to 50 cart lines in one call, e.g. a recipe or a repeat of a past order. Each quantity is exact, from 0 to 50 (0 removes the line), and each product may appear once. Items are applied in order, a quarter of a second apart so Bilka sees one person's pace; timeouts, rate limits (HTTP 429) and Bilka server errors (HTTP 5xx) are retried up to three times with growing waits, and a failed item doesn't stop the rest, with two exceptions: a failed login, and an item that still gets HTTP 429 after its retries, stop the batch so the rest don't fail too or push further into Bilka's rate limit. The items after it are reported as failed with 0 attempts and a "not attempted" reason. Other network failures (Bilka unreachable) aren't retried. Returns each item's outcome and the cart afterwards (summary, or `full`). Flagged destructive. | yes |
-| `get_order_history` | Lists your past orders, newest first and a page at a time: order id, order date, delivery date and slot, status, total in DKK, item count and a short preview of item names. | yes |
-| `get_order_details` | Everything in one past order: each item's name, brand, size, quantity, price paid and offer text, the fees and totals, and the delivery or pickup slot. The product ids work with the cart tools, so you can buy an order again. | yes |
+## Quick start
 
-Placing orders and payment stay on the website: the server can't do either. Your name, address, door and pickup codes and delivery notes are replaced with a marker before anything reaches the model.
+You need [Node.js](https://nodejs.org) 24 or later. `npx` comes with it, so there's nothing to clone or install.
 
-## Requirements
-
-Node.js 24 or later. `npx` comes with it and runs the server from npm, so there's nothing to clone or install. To run it from a clone instead, see [Development](#development).
-
-## Choose your store
-
-Search only shows what one Bilka store carries, so the server needs to know your store. Ask your assistant, for example "use Bilka Odense" or "which Bilka stores are there?". It calls `list_stores` to see the stores and `select_store` to choose one, by its id (such as `1654`) or by part of a store or pickup-point name. A pickup-point name chooses the store that serves it. When a name matches several stores, nothing is chosen and the assistant asks you which one you mean. Neither tool needs a login, and a choice applies to the next search straight away.
-
-The choice is saved to `~/.config/bilkatogo-mcp/settings.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"storeId": "1654"}`, written atomically with mode 600 like the session file, so it survives a restart. If the file can't be written, the server writes a warning to stderr and the choice lasts until the server stops. It's a setting of this server only: nothing changes on your Bilka account.
-
-Optionally, set a default store without asking the assistant: `BILKATOGO_STORE_ID`, or `"storeId"` in `~/.config/bilkatogo-mcp/login.json` (see [Credential options](#credential-options)). The environment wins over the login file, and a store chosen with `select_store` wins over both, because it's your most recent choice. The defaults are read only when a tool needs the store, and the file at most once per run, so restart the server after changing them. Without any store, `search_products` answers with an error that tells the assistant to choose one.
-
-The original spec (issue #1) pinned eight tools. `select_store` was added on request, so you can pick a store by name in conversation instead of looking up and configuring its id. When you switch the cart to a pickup place in another store with `set_delivery_place`, the selected store follows it, so search shows the cart's prices.
-
-The four delivery tools were added on request too: when home delivery is sold out, the assistant can suggest pickup, switch the cart once you agree, and choose a slot there.
-
-## Log in
-
-Tools that use your account (`get_cart`, the two cart setters, the delivery tools and the order tools) need a BilkaToGo login. Use your own Salling Group Profile only: the profile terms say it's personal and its login mustn't be shared (see [Disclaimer](#disclaimer)). The server logs in only when such a tool runs; search and the store list work without any credentials.
-
-### Log in from the terminal
-
-The simplest way is the `login` command. It asks for your email and password, checks them with Bilka's login service (SAP Gigya), and saves only the login token Gigya hands back, to the [session file](#the-session-file). Your password isn't stored anywhere.
+**1. Log in.** This asks for your BilkaToGo email and password and saves only a login token. Your password isn't stored.
 
 ```sh
 npx bilkatogo-mcp@latest login
 ```
 
-If Bilka ever blocks password login, use `login --token` and paste a login token from the browser instead (see below).
+**2. Add the server to your MCP client.** In Claude Code:
+
+```sh
+claude mcp add bilka -s user -- npx -y bilkatogo-mcp@latest
+```
+
+<details>
+<summary>Claude Desktop and other MCP clients</summary>
+
+Any MCP client works the same way: it runs `npx -y bilkatogo-mcp@latest` over stdio. In Claude Desktop's `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "bilka": { "command": "npx", "args": ["-y", "bilkatogo-mcp@latest"] }
+  }
+}
+```
+
+</details>
+
+**3. Ask for your store**, for example "use Bilka Odense". Search shows what one store carries, so the assistant picks one first and remembers it.
+
+With `@latest`, `npx` checks for a new version each time your MCP client starts the server, so updates arrive on the next restart. To stay on one version, name it instead, e.g. `bilkatogo-mcp@0.1.1`.
+
+## Tools
+
+| Tool | What it does | Login |
+|---|---|---|
+| `search_products` | Searches or browses the catalogue at your store: by text, category, this week's leaflet (Bilka Avisen), offers or one mix offer, sorted by price or unit price. | no |
+| `list_categories` | The shop's category tree, one level at a time, with product counts (all, leaflet or offers). | no |
+| `get_product_details` | One product's size, prices, labels, ingredients, allergens and nutrition. | no |
+| `list_stores` | The Bilka stores and the pickup points each one serves. | no |
+| `select_store` | Chooses your store by id or name ("odense"). A local setting; your Bilka account doesn't change. | no |
+| `get_cart` | Your cart: lines, totals, fees, and where and when it's delivered. | yes |
+| `set_cart_quantity` | Sets one product's quantity in the cart (0 removes it). | yes |
+| `set_cart_quantities` | Sets up to 50 cart lines in one go, e.g. a recipe or a past order, at one person's pace. | yes |
+| `list_delivery_places` | Home delivery, pickup in a Bilka store and PickUp points, with their minimum orders. | yes |
+| `set_delivery_place` | Moves the cart to one of those places. | yes |
+| `list_delivery_slots` | The next two weeks of slots at the cart's place, with order deadlines. | yes |
+| `set_delivery_slot` | Sets the cart's slot. Bilka reserves nothing until you order. | yes |
+| `get_order_history` | Your past orders, newest first. | yes |
+| `get_order_details` | Everything in one past order, ready to buy again with the cart tools. | yes |
+
+### What it won't do
+
+- **Place orders or touch payment.** Checkout stays on the website, done by you. The tool list is fixed, and a test checks it.
+- **Show your personal details to the model.** Your name, address, phone, email, door and pickup codes and delivery notes are replaced with a marker first.
+- **Change your cart without the client knowing.** Every tool that changes the cart is flagged destructive, so your MCP client can ask you first. Quantities are absolute: setting 2 means 2, not 2 more.
+- **Hammer Bilka.** Requests stay at the pace of one person shopping.
+
+## Your store
+
+The assistant calls `list_stores` and `select_store` for you. A pickup-point name picks the store that serves it, and when a name matches several stores, it asks you which one. The choice is saved in `~/.config/bilkatogo-mcp/settings.json`.
+
+When you move the cart to pickup in another store, the selected store follows it, so search shows the cart's prices.
+
+To set a default store without asking, set `BILKATOGO_STORE_ID` (e.g. `claude mcp add bilka -e BILKATOGO_STORE_ID=1654 -- npx -y bilkatogo-mcp@latest`) or `"storeId"` in `login.json` (below). A store chosen with `select_store` wins over both.
+
+## Logging in
+
+Search and the store list work without a login. The cart, delivery and order tools need your BilkaToGo login.
 
 | Command | What it does |
 |---|---|
 | `npx bilkatogo-mcp@latest login` | Logs in with email and password. Only the login token is saved. |
-| `npx bilkatogo-mcp@latest login --token` | Logs in with a login token pasted from the browser. |
+| `npx bilkatogo-mcp@latest login --token` | Logs in with a login token pasted from the browser, in case Bilka ever blocks password login. |
 | `npx bilkatogo-mcp@latest status` | Checks whether the saved login still works. |
 | `npx bilkatogo-mcp@latest logout` | Forgets the saved login. |
 
 Restart your MCP client after logging in if the server is already running.
 
-### Credential options
+<details>
+<summary>Other ways to give it your login</summary>
 
-Instead of the `login` command, you can give the server one or both of these:
+Instead of the `login` command, the server can log in by itself with either of these:
 
-- **Email and password**: `BILKATOGO_EMAIL` and `BILKATOGO_PASSWORD`. The server logs in through Bilka's login service (SAP Gigya) by itself.
-- **A pasted login token**: `BILKATOGO_LOGIN_TOKEN`. This is the fallback in case Bilka ever blocks automated password login. To get one, log in on [bilkatogo.dk](https://www.bilkatogo.dk), open the browser's developer console and run `localStorage.getItem("auth")`.
+- **Email and password**: `BILKATOGO_EMAIL` and `BILKATOGO_PASSWORD`.
+- **A pasted login token**: `BILKATOGO_LOGIN_TOKEN`. Log in on [bilkatogo.dk](https://www.bilkatogo.dk), open the browser's developer console and run `localStorage.getItem("auth")`.
 
-Each can come from the environment or from `~/.config/bilkatogo-mcp/login.json` (under `$XDG_CONFIG_HOME` when that's set). The environment wins when both are set. Keep the file readable only by you; the server warns when it isn't:
+Each can come from the environment or from `~/.config/bilkatogo-mcp/login.json`. The environment wins when both are set. Leave out the keys you don't use:
 
 ```sh
 mkdir -p ~/.config/bilkatogo-mcp
@@ -89,39 +122,38 @@ JSON
 chmod 600 ~/.config/bilkatogo-mcp/login.json  # in case the file already existed
 ```
 
-Leave out the keys you don't use. `storeId` is optional and isn't a secret; it's there so the whole setup can live in one file.
+Keep your password and login token out of MCP config files, which are easy to commit by accident.
 
-### How the server logs in
+</details>
 
-When a tool needs the account, the server tries these login sources in order, each at most once, and uses the first that works:
+<details>
+<summary>How the server logs in, and where it keeps things</summary>
 
-1. the remembered login token from the session file (see below)
+When a tool needs your account, the server tries these in order and uses the first that works:
+
+1. the saved login token in `session.json` (from `login`, or from an earlier run)
 2. the pasted login token
 3. a fresh login with your email and password
 
-The login token is swapped for a 24-hour session (a JWT), kept in memory and renewed a few minutes before it runs out. If Bilka still says a request isn't logged in, the server logs in again and retries that request once. If every source fails, the tool's error lists the sources it tried and what Bilka answered, without any secret in it.
+If every source fails, the tool's error says what it tried and what Bilka answered.
 
-### The session file
+Its files live in `~/.config/bilkatogo-mcp/` (under `$XDG_CONFIG_HOME` when that's set), readable only by you:
 
-A login token that works is saved to `~/.config/bilkatogo-mcp/session.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"loginToken": "…"}`, so a restart doesn't need a fresh password login. The file is written atomically (a temp file renamed into place) with mode 600, readable only by you. If it can't be written, the server writes a warning to stderr and carries on; it will log in again after the next restart. When Gigya rejects the remembered token, the server deletes the file too, so the next restart doesn't try that token first. Run `logout`, or delete the file yourself, to make the server forget the login.
+| File | Holds |
+|---|---|
+| `session.json` | The working login token, so a restart needn't log in again. Deleted when Bilka rejects it, or by `logout`. |
+| `settings.json` | The store you chose with `select_store`. |
+| `login.json` | Credentials you wrote yourself (optional). The server only reads it. |
 
-## Register it in Claude Code
+</details>
 
-```sh
-claude mcp add bilka -- npx -y bilkatogo-mcp@latest
-```
+## Disclaimer
 
-Then ask Claude something like "use Bilka Odense and find havremælk". Add `-s user` to make the server available in every project.
+bilkatogo-mcp is unofficial and is not affiliated with, endorsed by or supported by Bilka or Salling Group A/S. "Bilka" and "BilkaToGo" are trademarks of Salling Group, used here only to say what the software works with. It talks to BilkaToGo's private web API, the same one the website uses, which can change or stop working at any time.
 
-With `@latest`, `npx` checks npm for a new version each time your MCP client starts the server, so an update arrives with the next restart. To stay on one version, name it instead, e.g. `bilkatogo-mcp@0.1.0`.
+BilkaToGo's and Salling Group's terms don't mention tools like this, and automated use may still conflict with them. Salling Group may deactivate a Salling Group Profile it believes is misused (profile terms §5.5, §9). That profile is also your login for Bilka plus, føtex plus, Netto+ and other Salling services, so losing it affects more than BilkaToGo.
 
-To set a default store in the MCP config instead, add `-e BILKATOGO_STORE_ID=1654`. The store id isn't a secret, so it's fine there. Your password and login token are: keep them in `~/.config/bilkatogo-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
-
-Any other MCP client works the same way: it runs `npx -y bilkatogo-mcp@latest` over stdio. For example, in Claude Desktop's `claude_desktop_config.json`:
-
-```json
-{ "mcpServers": { "bilka": { "command": "npx", "args": ["-y", "bilkatogo-mcp@latest"] } } }
-```
+**Use it with your own profile only**, at your own risk, and at the pace of one person shopping. Don't run it for someone else or with their login. It never places orders or handles payment. This isn't legal advice.
 
 ## Development
 
@@ -134,26 +166,11 @@ npm install
 claude mcp add bilka -- node "$PWD/src/main.ts"
 ```
 
-The setup commands work the same way: `node src/main.ts login`.
+The setup commands work the same way: `node src/main.ts login`. `npm run check` runs everything CI runs.
 
-The npm package is different: Node won't strip types from files under `node_modules`, which is where `npx` installs it. So `npm pack` and `npm publish` first run `npm run build`, which emits JavaScript into `dist/` (`tsconfig.build.json`), and the package's `bilkatogo-mcp` command runs `dist/main.js`. CI packs the package and runs it through `npx` on every push.
-
-| Script | What it does |
-|---|---|
-| `npm start` | Runs the server on stdio. |
-| `npm run build` | Emits the published JavaScript into `dist/`. Only `npm pack` and `npm publish` need it. |
-| `npm test` | Runs the test suite (Vitest). It's offline: a fake Bilka answers every request. |
-| `npm run typecheck` | Type-checks with TypeScript 7. Nothing is emitted. |
-| `npm run lint` | Lints with oxlint. |
-| `npm run format` | Formats with oxfmt (`format:check` only checks). |
-| `npm run deadcode` | Finds unused files, exports, types, class members and dependencies, and import cycles, with Fallow (`.fallowrc.json`). Any finding fails. |
-| `npm run check` | All of the above. It must pass before a change counts as done. CI runs it on every push to `main` and every pull request. |
-
-Before changing how the server talks to Bilka, read [docs/research.md](docs/research.md) and [CLAUDE.md](CLAUDE.md).
-
-To record real Bilka responses from your own account for test fixtures, see [docs/capture.md](docs/capture.md).
-
-Releases to npm go through a release PR: see [docs/releasing.md](docs/releasing.md).
+- [CLAUDE.md](CLAUDE.md) and [docs/research.md](docs/research.md): read these before changing how the server talks to Bilka.
+- [docs/capture.md](docs/capture.md): recording real Bilka responses for test fixtures.
+- [docs/releasing.md](docs/releasing.md): releases go to npm through a release PR.
 
 ## License
 
