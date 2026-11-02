@@ -4,7 +4,7 @@ Releases go to npm as `bilkatogo-mcp` through a release PR, using [release-pleas
 
 ## How a release happens
 
-1. Merge PRs into `main` as usual. Their commit messages follow [Conventional Commits](https://www.conventionalcommits.org), which decide the next version:
+1. Merge PRs into `main`. The repo only allows squash merges, and the squash commit takes the PR title, so each PR becomes one commit and one changelog line. PR titles follow [Conventional Commits](https://www.conventionalcommits.org), which decide the next version:
    - `fix:` gives a patch release (0.1.0 → 0.1.1).
    - `feat:` gives a minor release (0.1.0 → 0.2.0).
    - `feat!:`, or a `BREAKING CHANGE:` footer, would give a major release. Before 1.0.0 it gives a minor release instead (`bump-minor-pre-major`).
@@ -43,5 +43,5 @@ npm's trusted publishing lets the workflow publish without an npm token. It can 
 
 - Every action in the release workflow is pinned to a commit, so a moved tag can't change what runs. To update one, look up the new release's commit and update the SHA and its version comment.
 
-- npm attaches a provenance statement (a signed record of the commit and workflow that built the release) only when the repo is public. From a private repo, trusted publishing still works, without provenance.
+- Each release staged by the workflow carries a provenance statement: a signed record, in the public Sigstore transparency log, of the commit and workflow that built it.
 - To release a specific version, add a `Release-As: x.y.z` footer to a commit on `main`.
