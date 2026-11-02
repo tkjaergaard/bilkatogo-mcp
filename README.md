@@ -1,8 +1,4 @@
-<img src="assets/icon.svg" width="64" height="64" alt="">
-
 # bilka-mcp
-
-Created in [T3 Code](https://t3.codes).
 
 An unofficial, private MCP server for [BilkaToGo](https://www.bilkatogo.dk), the Danish grocery shop. It's a local proof of concept: your MCP client starts it over stdio, and it talks to BilkaToGo for you. It isn't affiliated with Bilka or Salling Group.
 
