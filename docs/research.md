@@ -62,7 +62,7 @@ Checked live today: Algolia search returns products with no login, and `Availabl
 
 | Step | Request | Answer |
 |---|---|---|
-| Password login | `POST https://accounts.eu1.gigya.com/accounts.login`, form `loginID, password, apiKey, httpStatusCodes=true` | `errorCode: 0`. **Works headless**: no CAPTCHA or bot protection. The login token is `sessionInfo.cookieValue`. The answer also carries the account `profile` (first and last name, email, zip, city, country) and `UID`. |
+| Password login | `POST https://accounts.eu1.gigya.com/accounts.login`, form `loginID, password, apiKey, httpStatusCodes=true` | `errorCode: 0`. Answers without a browser. The login token is `sessionInfo.cookieValue`. The answer also carries the account `profile` (first and last name, email, zip, city, country) and `UID`. |
 | JWT exchange | `POST .../accounts.getJWT`, form `apiKey, login_token, expiration=86400, httpStatusCodes=true` | `id_token` is the JWT. |
 | Cart | `GET https://api.bilkatogo.dk/api/shop/v6/Cart?u=w&extra=deliveryAddress,deliveryDate`, header `jwt_token` | The logged-in cart. Lines sit in `lines[].lines[].orderlines[]`, each with `quantity`, `amount`, `unitprice`, `net_unitprice` and a `product` (`objectID`, `name`, `brand`, `price`, …). Totals in `stat` (`price`, `amount`, …). Service fees such as `Pakkeservice` (product 81474) are ordinary lines under the headline "Services". |
 | Set a line | `GET .../shop/v6/ChangeLineCount?u=w&productId=<objectID>&count=<n>&fullCart=0` | `{unitCount, sum, productId, productAmount, productUnitPrice, message, offerLimitMessage}`: the cart's new unit count and total, and the line's new quantity. `count=0` removes the line. The Algolia `objectID` is the product id the shop accepts. |

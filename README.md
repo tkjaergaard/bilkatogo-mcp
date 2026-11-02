@@ -6,6 +6,14 @@ Created in [T3 Code](https://t3.codes).
 
 An unofficial, private MCP server for [BilkaToGo](https://www.bilkatogo.dk), the Danish grocery shop. It's a local proof of concept: your MCP client starts it over stdio, and it talks to BilkaToGo for you. It isn't affiliated with Bilka or Salling Group.
 
+## Disclaimer
+
+bilka-mcp is unofficial and is not affiliated with, endorsed by or supported by Bilka or Salling Group A/S. "Bilka" and "BilkaToGo" are trademarks of Salling Group, used here only to say what the software works with. It talks to BilkaToGo's private web API, the same one the website uses, which can change or stop working at any time.
+
+BilkaToGo's and Salling Group's terms don't mention tools like this, and automated use may still conflict with them. Salling Group may deactivate a Salling Group Profile it believes is misused (profile terms §5.5, §9). That profile is also your login for Bilka plus, føtex plus, Netto+ and other Salling services, so losing it affects more than BilkaToGo.
+
+**Use it with your own profile only**, at your own risk, and at the pace of one person shopping. Don't run it for someone else or with their login. It never places orders or handles payment. This isn't legal advice.
+
 It speaks MCP 2026-07-28 and still serves clients that use the older `initialize` handshake.
 
 ## Tools
@@ -53,7 +61,7 @@ The four delivery tools were added on request too: when home delivery is sold ou
 
 ## Log in
 
-Tools that use your account (`get_cart`, the two cart setters, the delivery tools and the order tools) need a BilkaToGo login. The server logs in only when such a tool runs; search and the store list work without any credentials.
+Tools that use your account (`get_cart`, the two cart setters, the delivery tools and the order tools) need a BilkaToGo login. Use your own Salling Group Profile only: the profile terms say it's personal and its login mustn't be shared (see [Disclaimer](#disclaimer)). The server logs in only when such a tool runs; search and the store list work without any credentials.
 
 ### Credential options
 
@@ -116,3 +124,7 @@ Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.t
 Before changing how the server talks to Bilka, read [docs/research.md](docs/research.md) and [CLAUDE.md](CLAUDE.md).
 
 To record real Bilka responses from your own account for test fixtures, see [docs/capture.md](docs/capture.md).
+
+## License
+
+[MIT](LICENSE). The test fixtures derived from nickknissen/bilkatogo keep its MIT notice, see [test/fixtures/README.md](test/fixtures/README.md).
