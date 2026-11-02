@@ -38,8 +38,8 @@ Placing orders and payment stay on the website: the server can't do either. Your
 Node.js 24 or later. Node runs the TypeScript source directly, so there's no build step.
 
 ```sh
-git clone <this repo> bilka-mcp
-cd bilka-mcp
+git clone https://github.com/tkjaergaard/bilkatogo-mcp.git
+cd bilkatogo-mcp
 npm install
 ```
 
@@ -104,7 +104,7 @@ Then ask Claude something like "use Bilka Odense and find havremælk". Add `-s u
 
 To set a default store in the MCP config instead, add `-e BILKATOGO_STORE_ID=1654`. The store id isn't a secret, so it's fine there. Your password and login token are: keep them in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
 
-Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.ts` over stdio.
+Any other MCP client works the same way: run `node /path/to/bilkatogo-mcp/src/main.ts` over stdio.
 
 ## Development
 

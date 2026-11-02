@@ -33,7 +33,7 @@ Read these from environment variables (`BILKATOGO_EMAIL`, `BILKATOGO_PASSWORD`, 
 
 ### Issue tracker
 
-Issues live in GitHub Issues for tkjaergaard/bilka-mcp, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues for tkjaergaard/bilkatogo-mcp, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
