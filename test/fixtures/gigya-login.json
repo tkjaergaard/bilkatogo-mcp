@@ -1,0 +1,39 @@
+{
+  "callId": "test-call-id",
+  "errorCode": 0,
+  "apiVersion": 2,
+  "statusCode": 200,
+  "statusReason": "OK",
+  "time": "2026-01-01T00:00:00.000Z",
+  "registeredTimestamp": 1767225600000,
+  "UID": "test-gigya-uid",
+  "UIDSignature": "test-signature",
+  "signatureTimestamp": "1767225600",
+  "created": "2026-01-01T00:00:00.000Z",
+  "createdTimestamp": 1767225600000,
+  "isActive": true,
+  "isRegistered": true,
+  "isVerified": false,
+  "lastLogin": "2026-01-01T00:00:00.000Z",
+  "lastLoginTimestamp": 1767225600000,
+  "lastUpdated": "2026-01-01T00:00:00.000Z",
+  "lastUpdatedTimestamp": 1767225600000,
+  "loginProvider": "site",
+  "oldestDataUpdated": "2026-01-01T00:00:00.000Z",
+  "oldestDataUpdatedTimestamp": 1767225600000,
+  "profile": {
+    "firstName": "Test",
+    "lastName": "Testesen",
+    "city": "Testby",
+    "country": "DK",
+    "email": "test@example.com",
+    "zip": "0000"
+  },
+  "registered": "2026-01-01T00:00:00.000Z",
+  "socialProviders": "site",
+  "newUser": false,
+  "sessionInfo": {
+    "cookieName": "gac_3_tA6BbV434FQqN73HnUG1KA3qFv8KiG4OqLu9eWPh7sKRqRizH5Vfv5Larmgrb4I2",
+    "cookieValue": "test-login-token"
+  }
+}

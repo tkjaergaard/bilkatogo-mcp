@@ -1,0 +1,10 @@
+{
+  "msg": "authenticated",
+  "customer_chosen_pickupzone": "1",
+  "is_ski": false,
+  "company": null,
+  "eid": 2000001,
+  "uid": 1000001,
+  "tid": "test-tid",
+  "info_object": null
+}
