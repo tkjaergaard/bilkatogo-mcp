@@ -3,3 +3,6 @@ coverage/
 *.log
 .env
 login.json
+# Raw BilkaToGo captures (scripts/capture.ts) hold personal data. They belong
+# outside the repo; this is a backstop. See docs/capture.md.
+captures/

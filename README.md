@@ -64,3 +64,5 @@ Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.t
 | `npm run check` | All of the above. It must pass before a change counts as done. |
 
 Before changing how the server talks to Bilka, read [docs/research.md](docs/research.md) and [CLAUDE.md](CLAUDE.md).
+
+To record real Bilka responses from your own account for test fixtures, see [docs/capture.md](docs/capture.md).
