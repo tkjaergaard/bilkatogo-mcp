@@ -204,8 +204,14 @@ export function createServer(config: ServerConfig): McpServer {
         "To fill a mix, pass the product's `mix.mix_offer_id` as `mix_offer_id`: that lists every",
         "product counting towards the mix at the store.",
         "Only products the store carries are returned; by default only those in stock.",
+        "`sort` puts the cheapest first by `price` or `unit_price` at the store.",
+        "`sort` works best with a `category`, `only_leaflet` or `mix_offer_id`: Bilka then ranks",
+        "price above relevance, so a sorted free-text search alone brings cheap near-matches first",
+        "(the answer's `notes` says so). Products without the price come last, and unit prices only",
+        "compare within one `unit` (kg, l, stk).",
         "Results come a page at a time: the answer has `page`, `total_pages` and `total_results`;",
-        "ask for the next `page` to see more.",
+        "ask for the next `page` to see more. A sorted search's pages follow Bilka's sort, and each",
+        "page is put in the store's exact price order.",
         untrustedText("Product names, descriptions, category names, offer texts and mix texts"),
       ].join(" "),
       inputSchema: z
@@ -231,6 +237,12 @@ export function createServer(config: ServerConfig): McpServer {
             .default(1)
             .describe(
               "Which page of results to return, from 1. The answer says how many there are.",
+            ),
+          sort: z
+            .enum(["relevance", "price", "unit_price"])
+            .default("relevance")
+            .describe(
+              "`relevance` (Bilka's ranking), `price` or `unit_price`: cheapest first at the store.",
             ),
           only_in_stock: z
             .boolean()
@@ -280,6 +292,7 @@ export function createServer(config: ServerConfig): McpServer {
       query,
       limit,
       page,
+      sort,
       only_in_stock,
       only_offers,
       only_leaflet,
@@ -297,15 +310,33 @@ export function createServer(config: ServerConfig): McpServer {
           category,
           mixOfferId: mix_offer_id,
         },
+        sort,
         page,
         limit: Math.min(limit, limits.maxSearchResults),
       });
+      const notes: string[] = [];
+      // The sort indexes rank price above text relevance, so a bare text
+      // search sorted by price drifts to cheap near-matches.
+      if (
+        sort !== "relevance" &&
+        query !== undefined &&
+        category === undefined &&
+        !only_leaflet &&
+        mix_offer_id === undefined
+      ) {
+        notes.push(
+          `Sorted by ${sort === "price" ? "price" : "unit price"}, Bilka ranks price above ` +
+            "relevance, so cheap products that only partly match the query come first. " +
+            "Narrow with a category (see list_categories) or only_leaflet for better results.",
+        );
+      }
       return jsonResult({
         store_id: storeId,
         query: query ?? null,
         page: found.page,
         total_pages: found.totalPages,
         total_results: found.totalResults,
+        ...(notes.length > 0 && { notes }),
         products: found.products,
       });
     },

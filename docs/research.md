@@ -41,6 +41,7 @@ Search  ─► Algolia (public key the site ships to browsers, no login)
            POST https://F9VBJLR1BK-dsn.algolia.net/1/indexes/prod_BILKATOGO_PRODUCTS/query
            filters: isInAssortmentIn:<sid>, inStockStore:<sid>, isInOffer:<sid>,
                     isInCurrentLeaflet:true (the leaflet)
+           sorted:  prod_r_BILKATOGO_PRODUCT_pricesort, ..._uompricesort (same body)
            details: POST .../1/indexes/*/objects
 
 Login   ─► SAP Gigya (eu1)
@@ -129,6 +130,15 @@ A mix offer is "buy N of these products for a set price", e.g. "Mix 2 for 35,00"
 - **`storeData.<sid>.unitsOfMeasureOfferPrice` is unreliable**: it's filled even on products not on offer (Dumle Original had 140.00 kr without an offer). It's never read.
 - **Open question:** whether one product can carry several mix ids in one store. No live record with more than one id has been seen; the store's `multipromo` field holds a single id, which suggests one mix per product per store.
 
+### Algolia: the sort indexes (checked live on 2026-11-02, public key, no login)
+
+The website's "Billigst" and "Laveste enhedspris" sorts query two other indexes with the same body and filters as the main one: `prod_r_BILKATOGO_PRODUCT_pricesort` and `prod_r_BILKATOGO_PRODUCT_uompricesort`. `search_products` sends `sort: "price"` and `sort: "unit_price"` there; `relevance` stays on `prod_BILKATOGO_PRODUCTS`.
+
+- **They're standard replicas**, not virtual ones: the price ranks above text relevance. Browsing (a category, the leaflet, a mix) works well, but a free-text search is poor. "kaffe" at store 1654 matched 349 products on the price index against 720 on the main index, and coffee cream and latte drinks came first. So `search_products` adds a note to `notes` when a sorted search has a `query` but no `category`, `only_leaflet` or `mix_offer_id`.
+- **The sort key isn't the selected store's current price.** On the price index the store prices came back as 9.95, 7, 7, 10.50. On the unit-price index (leaflet, "Mejeri & køl", store 1653, one query) the order followed `storeData.1653.unitsOfMeasurePrice`, the unit price *before* the offer (4.10, 15.60, 17.05, 17.50 …), not `unitsOfMeasureShowPrice`, the one shown and returned as `unit_price` (2.50, 14.00, 14.00, 16.00 …). What either index actually sorts on is unknown. `search_products` therefore re-sorts each returned page by the store's `price` or `unit_price`; ties keep the index's order and products without the price go last. Pages still follow the index's order, so a product can sit one page off from where the store price would put it.
+- **Unit prices aren't comparable across units.** A page can mix "stk", "l" and "kg" (eggs per piece came first above, then milk per litre); the re-sort compares the numbers as they are.
+- **There's no "biggest saving" index**, and mix offers have `beforePrice` 0, so a saving sort can't be computed either.
+
 ### Algolia: the category tree (checked live on 2026-11-02, public key, no login)
 
 **The website's menu is `consumerFacingHierarchy`.** Each record has `consumerFacingHierarchy.lvl0` … `lvlN`, arrays of paths whose names are joined by " > ", e.g. `lvl1: ["Mejeri & køl > Pålæg"]`. A product's `deepestCategoryPath` is its deepest path in the same format, so it works as a filter value.
@@ -178,4 +188,4 @@ Compared with stigvoss/bilkatogo-mcp, and with nemlig-mcp as the model:
 - **Login.** Gigya might add CAPTCHA or bot protection to `accounts.login`. Keep the fallback of pasting a browser token.
 - **Checkout stays out**, as nemlig-mcp decided: a person always places the order on the website.
 - **Prompt injection.** Product names are untrusted text and should be labelled as such in tool descriptions.
-- **Still unknown:** Bilka's answer to an unknown order id, an unknown product in `ChangeLineCount`, a slot it doesn't offer in `SetDeliveryDate`, and a refused `SetDeliveryAddress`; whether switching to another store's place drops cart lines that store doesn't carry; whether an account can hold more than one home address (the server numbers them "home", "home-2", …, but `get_cart` calls any of them "home"); what `stat.promo` means; and whether a product can carry several mix ids in one store (see "Algolia: mix offers").
+- **Still unknown:** Bilka's answer to an unknown order id, an unknown product in `ChangeLineCount`, a slot it doesn't offer in `SetDeliveryDate`, and a refused `SetDeliveryAddress`; whether switching to another store's place drops cart lines that store doesn't carry; whether an account can hold more than one home address (the server numbers them "home", "home-2", …, but `get_cart` calls any of them "home"); what `stat.promo` means; whether a product can carry several mix ids in one store (see "Algolia: mix offers"); and what the two sort indexes actually sort on (see "Algolia: the sort indexes").

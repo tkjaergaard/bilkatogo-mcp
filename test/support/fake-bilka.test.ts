@@ -133,3 +133,27 @@ test("Algolia filters take quoted values with spaces, & and ' > ', and refuse wh
   );
   await expect(query("inStockStore:1653 AND")).rejects.toThrow(/can't parse/);
 });
+
+test("Algolia answers the two sort indexes off a non-store key, and any other index 404", async () => {
+  const bilka = new FakeBilka();
+  const query = (index: string) =>
+    bilka.fetch(`https://f9vbjlr1bk-dsn.algolia.net/1/indexes/${index}/query`, {
+      method: "POST",
+      headers: {
+        "x-algolia-application-id": ALGOLIA_APP_ID,
+        "x-algolia-api-key": ALGOLIA_SEARCH_KEY,
+      },
+      body: JSON.stringify({
+        filters: 'consumerFacingHierarchy.lvl0:"Mejeri & køl"',
+        attributesToRetrieve: ["objectID"],
+      }),
+    });
+  const ids = async (index: string) =>
+    (await (await query(index)).json()).hits.map((hit: { objectID: string }) => hit.objectID);
+
+  // List prices 30,95 / 39,31 / 14,35; øko skyr costs 25,00 at 1653, which the key ignores.
+  expect(await ids("prod_r_BILKATOGO_PRODUCT_pricesort")).toEqual(["140787", "19753", "128298"]);
+  // Unit prices 30,95 / 49,14 / 71,75 per kg.
+  expect(await ids("prod_r_BILKATOGO_PRODUCT_uompricesort")).toEqual(["19753", "128298", "140787"]);
+  expect((await query("prod_r_BILKATOGO_PRODUCT_savingsort")).status).toBe(404);
+});

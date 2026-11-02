@@ -42,6 +42,18 @@ type Script = { pattern: RoutePattern; respond: Responder; remaining: number };
 export const ALGOLIA_APP_ID = "F9VBJLR1BK";
 export const ALGOLIA_SEARCH_KEY = "1deaf41c87e729779f7695c00f190cc9";
 export const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
+/**
+ * The website's two sort replicas, "Billigst" and "Laveste enhedspris", and
+ * the record attribute the fake sorts each by. Live, the sort key isn't the
+ * selected store's price (docs/research.md §3); the fake deliberately sorts by
+ * the record's top-level list price and unit price. Like the live unit-price
+ * index, they ignore the store's offer, so they differ from the store's price
+ * on discounted products and the client's re-sort is tested.
+ */
+export const ALGOLIA_SORT_INDEXES: Record<string, string> = {
+  prod_r_BILKATOGO_PRODUCT_pricesort: "price",
+  prod_r_BILKATOGO_PRODUCT_uompricesort: "unitOfMeasurePrice",
+};
 export const GIGYA_API_KEY = "3_tA6BbV434FQqN73HnUG1KA3qFv8KiG4OqLu9eWPh7sKRqRizH5Vfv5Larmgrb4I2";
 
 /** The login token in the scrubbed fixtures (`gigya-login.json`). */
@@ -544,13 +556,16 @@ export class FakeBilka {
    * paged by `hitsPerPage` and `page` (0-based) and projected by
    * `attributesToRetrieve`. A page past the end is empty, with the totals.
    * `facets` count the products that pass the filter per value, like Algolia,
-   * largest first and cut to `maxValuesPerFacet`.
+   * largest first and cut to `maxValuesPerFacet`. The two sort replicas
+   * (ALGOLIA_SORT_INDEXES) answer the same way, in their sort order; any
+   * other index is a 404.
    */
   private algoliaQuery(request: RecordedRequest): Response {
     const denied = checkAlgoliaKey(request);
     if (denied) return denied;
     const index = decodeURIComponent(request.url.pathname.split("/")[3] ?? "");
-    if (index !== ALGOLIA_PRODUCT_INDEX) {
+    const sortKey = ALGOLIA_SORT_INDEXES[index];
+    if (index !== ALGOLIA_PRODUCT_INDEX && sortKey === undefined) {
       return jsonResponse({ message: "Index does not exist", status: 404 }, 404);
     }
     const params = request.json() as {
@@ -565,7 +580,8 @@ export class FakeBilka {
     const filter = parseFilters(params.filters ?? "");
     const hitsPerPage = params.hitsPerPage ?? 20;
     const page = params.page ?? 0;
-    const matching = this.products.filter(filter);
+    const filtered = this.products.filter(filter);
+    const matching = sortKey === undefined ? filtered : sortAscending(filtered, sortKey);
     const hits = matching
       .slice(page * hitsPerPage, (page + 1) * hitsPerPage)
       .map((product) => project(product, params.attributesToRetrieve ?? ["*"]));
@@ -691,6 +707,18 @@ function countFacets(
     );
   }
   return facets;
+}
+
+/**
+ * A sort replica's order: ascending on `attribute`, ties in index order, and
+ * records without a numeric value last, as Algolia does.
+ */
+function sortAscending(products: Record<string, any>[], attribute: string): Record<string, any>[] {
+  const key = (product: Record<string, any>) => {
+    const value = valueAt(product, attribute);
+    return typeof value === "number" ? value : Number.POSITIVE_INFINITY;
+  };
+  return products.toSorted((a, b) => (key(a) === key(b) ? 0 : key(a) < key(b) ? -1 : 1));
 }
 
 /** The value at a dotted attribute path, e.g. `consumerFacingHierarchy.lvl1`. */

@@ -29,6 +29,10 @@ export const ALGOLIA_APP_ID = "F9VBJLR1BK";
 export const ALGOLIA_SEARCH_KEY = "1deaf41c87e729779f7695c00f190cc9";
 export const ALGOLIA_HOST = `https://${ALGOLIA_APP_ID.toLowerCase()}-dsn.algolia.net`;
 export const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
+// The website's sort replicas of the product index, "Billigst" and "Laveste
+// enhedspris". Standard replicas: price ranks above text relevance.
+export const ALGOLIA_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_pricesort";
+export const ALGOLIA_UNIT_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_uompricesort";
 
 export const SHOP_HOST = "https://api.bilkatogo.dk";
 
@@ -180,10 +184,23 @@ export type SearchRequest = {
   /** Free text. Empty browses: only the filters choose the products. */
   query: string;
   filters: SearchFilters;
+  /**
+   * `relevance` is Algolia's ranking. `price` and `unit_price` are cheapest
+   * first at the store, within the page; products without one come last.
+   */
+  sort: SearchSort;
   /** 1-based. */
   page: number;
   /** Products per page. */
   limit: number;
+};
+
+export type SearchSort = "relevance" | "price" | "unit_price";
+
+const SORT_INDEXES: Record<SearchSort, string> = {
+  relevance: ALGOLIA_PRODUCT_INDEX,
+  price: ALGOLIA_PRICE_SORT_INDEX,
+  unit_price: ALGOLIA_UNIT_PRICE_SORT_INDEX,
 };
 
 /** One page of a product search. */
@@ -528,7 +545,7 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
   }
 
   return {
-    async searchProducts({ storeId, query, filters: wanted, page, limit }) {
+    async searchProducts({ storeId, query, filters: wanted, sort, page, limit }) {
       const filters = productFilters(storeId, {
         ...wanted,
         // A mix id is the same in every store, but only some stores give the
@@ -542,7 +559,7 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
         }
         filters.push(`multipromos:${wanted.mixOfferId}`);
       }
-      const data = await algolia("Product search", `/1/indexes/${ALGOLIA_PRODUCT_INDEX}/query`, {
+      const data = await algolia("Product search", `/1/indexes/${SORT_INDEXES[sort]}/query`, {
         query,
         hitsPerPage: limit,
         // Algolia counts pages from 0.
@@ -552,8 +569,9 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       });
       const hits = arrayField(data, "hits", "Product search answered without results");
       const { nbPages, nbHits } = data as { nbPages?: unknown; nbHits?: unknown };
+      const products = hits.map((hit) => toProduct(hit as AlgoliaProduct, storeId));
       return {
-        products: hits.map((hit) => toProduct(hit as AlgoliaProduct, storeId)),
+        products: sort === "relevance" ? products : cheapestFirst(products, sort),
         page,
         totalPages: typeof nbPages === "number" ? nbPages : 0,
         totalResults: typeof nbHits === "number" ? nbHits : hits.length,
@@ -829,6 +847,16 @@ function toStores(addresses: DeliveryAddress[]): Store[] {
     const name = names.find((n) => /^bilka\b/i.test(n)) ?? names[0] ?? storeId;
     return { store_id: storeId, name, pickup_points: names.filter((n) => n !== name) };
   });
+}
+
+/**
+ * The page in the store's order for `sort`: a sort replica's key isn't the
+ * selected store's price (docs/research.md §3). Ties keep the index's order;
+ * products without the price come last.
+ */
+function cheapestFirst(products: Product[], sort: "price" | "unit_price"): Product[] {
+  const key = (product: Product) => product[sort] ?? Number.POSITIVE_INFINITY;
+  return products.toSorted((a, b) => (key(a) === key(b) ? 0 : key(a) < key(b) ? -1 : 1));
 }
 
 /**
