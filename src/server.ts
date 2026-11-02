@@ -5,6 +5,7 @@ import * as z from "zod";
 import { createSession } from "./auth.ts";
 import {
   createBilkaClient,
+  MIX_OFFER_ID_PATTERN,
   ORDER_ID_PATTERN,
   PRODUCT_ID_PATTERN,
   type Session,
@@ -186,17 +187,21 @@ export function createServer(config: ServerConfig): McpServer {
       title: "Search BilkaToGo products",
       description: [
         "Search or browse the BilkaToGo catalogue at the configured Bilka store.",
-        "Give a `query`, or leave it out and browse with `only_leaflet` or `only_offers`.",
+        "Give a `query`, or leave it out and browse with `only_leaflet`, `only_offers` or `mix_offer_id`.",
         "`only_leaflet` means this week's Bilka Avisen (the leaflet) and nothing else.",
         "`only_offers` is much broader: anything with an offer text, including everyday price",
         'labels such as "Skarp pris". Each product\'s `in_leaflet` tells the two apart.',
         "Prices are in DKK. `price` is what one item costs now; when the product is discounted,",
         '`regular_price` and `saving` say by how much. `offer` is the offer text, e.g. "Mix 10 for 25,00",',
         "and `offer_from`/`offer_until` its dates when the store gives them.",
+        "A product in a mix offer has `mix`: `items` of the mix's products cost `price` together",
+        '(null when Bilka gives no price, e.g. "3 for 2").',
+        "To fill a mix, pass the product's `mix.mix_offer_id` as `mix_offer_id`: that lists every",
+        "product counting towards the mix at the store.",
         "Only products the store carries are returned; by default only those in stock.",
         "Results come a page at a time: the answer has `page`, `total_pages` and `total_results`;",
         "ask for the next `page` to see more.",
-        untrustedText("Product names, descriptions and offer texts"),
+        untrustedText("Product names, descriptions, offer texts and mix texts"),
       ].join(" "),
       inputSchema: z
         .object({
@@ -234,20 +239,42 @@ export function createServer(config: ServerConfig): McpServer {
             .boolean()
             .default(false)
             .describe("Return only products in this week's Bilka Avisen (the leaflet)."),
+          mix_offer_id: z
+            .string()
+            .trim()
+            .regex(MIX_OFFER_ID_PATTERN, "mix_offer_id is digits only")
+            .optional()
+            .describe(
+              "Return only the products that count towards this mix offer at the store: " +
+                'a product\'s `mix.mix_offer_id`, e.g. "2680".',
+            ),
         })
         // Without any of these, a search would page through the whole catalogue.
-        .refine((input) => input.query !== undefined || input.only_leaflet || input.only_offers, {
-          message:
-            "Give a query, or narrow the search with only_leaflet: true or only_offers: true.",
-        }),
+        .refine(
+          (input) =>
+            input.query !== undefined ||
+            input.only_leaflet ||
+            input.only_offers ||
+            input.mix_offer_id !== undefined,
+          {
+            message:
+              "Give a query, or narrow the search with only_leaflet: true, only_offers: true " +
+              "or mix_offer_id.",
+          },
+        ),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ query, limit, page, only_in_stock, only_offers, only_leaflet }) => {
+    async ({ query, limit, page, only_in_stock, only_offers, only_leaflet, mix_offer_id }) => {
       const storeId = requireStoreId(await state.storeId());
       const found = await bilka.searchProducts({
         storeId,
         query: query ?? "",
-        filters: { onlyInStock: only_in_stock, onlyOffers: only_offers, onlyLeaflet: only_leaflet },
+        filters: {
+          onlyInStock: only_in_stock,
+          onlyOffers: only_offers,
+          onlyLeaflet: only_leaflet,
+          mixOfferId: mix_offer_id,
+        },
         page,
         limit: Math.min(limit, limits.maxSearchResults),
       });

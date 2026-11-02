@@ -12,7 +12,7 @@ It speaks MCP 2026-07-28 and still serves clients that use the older `initialize
 
 | Tool | What it does | Needs login |
 |---|---|---|
-| `search_products` | Searches or browses the catalogue at your store, a page at a time. Prices in DKK, with regular price, saving, offer text and offer dates. Only in-stock products by default; can be limited to this week's Bilka Avisen (the leaflet) or to everything on offer, with or without a search text. | no |
+| `search_products` | Searches or browses the catalogue at your store, a page at a time. Prices in DKK, with regular price, saving, offer text and offer dates. Only in-stock products by default; can be limited to this week's Bilka Avisen (the leaflet), to everything on offer, or to the products in one mix offer ("Mix 2 for 35,00"), with or without a search text. Each product shows its mix offer, if any. | no |
 | `get_product_details` | Everything the catalogue holds about one product: size, prices, unit price, category, labels, and ingredients, allergens and nutrition where Bilka publishes them. | no |
 | `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves, plus the store the server uses now. | no |
 | `select_store` | Chooses the store to shop at, by store id or part of a store or pickup-point name ("odense"). When several stores match, it saves nothing and lists them so the assistant can ask you which one. Saved in `settings.json`; it changes only this server's setting, never your Bilka account. | no |

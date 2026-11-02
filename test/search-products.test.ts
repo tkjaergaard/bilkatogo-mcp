@@ -57,6 +57,7 @@ test("each result has id, name, brand, size, prices in DKK, unit price and categ
     in_leaflet: false,
     in_stock: true,
     category: "Mejeri & køl > Mejeri > Yoghurt & syrnede mælkeprodukter > Skyr",
+    mix: null,
   });
 });
 
@@ -84,6 +85,7 @@ test("a leaflet product says so, with the offer's dates at the store", async () 
       in_leaflet: true,
       in_stock: true,
       category: "Frost > Færdigretter på frost > Pizza",
+      mix: null,
     },
   ]);
 });
