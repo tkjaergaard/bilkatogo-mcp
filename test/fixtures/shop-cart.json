@@ -210,23 +210,23 @@
     "minimum_buy": 50000,
     "blockbit": 7,
     "nextAvailableDeliveryDate": "2026-11-02",
-    "currentDeliveryDate": "2026-07-27",
+    "currentDeliveryDate": "2030-01-07",
     "missing_hd_address": false,
     "accessconditions_required": false,
     "hd_available": true,
     "temporary_zipcode": "0000"
   },
   "deliveryDate": {
-    "displayDeliveryDate": "2026-07-27",
-    "deliveryDate": "2026-07-27",
+    "displayDeliveryDate": "2030-01-07",
+    "deliveryDate": "2030-01-07",
     "deliveryDay": "Man",
-    "intervalStart": "18:00",
-    "intervalEnd": "22:00",
+    "intervalStart": "17:00",
+    "intervalEnd": "21:00",
     "closed": 1,
     "customer_chosen_pickupzone": "1",
     "message": "",
     "order_id": "",
-    "delivery_message": "Man. 27/07. kl. 18:00 - 22:00"
+    "delivery_message": "Man. 07/01. kl. 17:00 - 21:00"
   },
   "checkoutconsent": [
     {

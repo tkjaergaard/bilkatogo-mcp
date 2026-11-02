@@ -54,7 +54,7 @@ export type Cart = {
   /** Service lines such as "Pakkeservice" and "Leveringsgebyr". */
   fees: CartFee[];
   delivery: CartDelivery;
-  /** e.g. "Man. 27/07. kl. 18:00 - 22:00". */
+  /** e.g. "Man. 07/01. kl. 17:00 - 21:00". */
   delivery_slot: string | null;
   /** How much more to buy before the order reaches Bilka's minimum, in DKK. */
   minimum_left: number | null;

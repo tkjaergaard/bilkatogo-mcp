@@ -19,10 +19,10 @@ export const CAPTURED_DELIVERY = {
     minimum_order: 500,
   },
   slot: {
-    date: "2026-07-27",
-    start: "18:00",
-    end: "22:00",
-    text: "Man. 27/07. kl. 18:00 - 22:00",
+    date: "2030-01-07",
+    start: "17:00",
+    end: "21:00",
+    text: "Man. 07/01. kl. 17:00 - 21:00",
     available: false,
   },
 };

@@ -111,7 +111,7 @@ test("set_delivery_place switches the cart to a pickup place the way the website
       fees: [{ name: "Pakkeservice", amount: 39 }],
       delivery: {
         place: { place_id: "21046", name: "Bilka Odense" },
-        slot: { date: "2026-07-27", available: false },
+        slot: { date: "2030-01-07", available: false },
       },
     },
   });

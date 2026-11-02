@@ -93,7 +93,7 @@ test("get_cart returns the full cart when asked", async () => {
       { name: "Pakkeservice", amount: 39 },
       { name: "Leveringsgebyr", amount: 39 },
     ],
-    delivery_slot: "Man. 27/07. kl. 18:00 - 22:00",
+    delivery_slot: "Man. 07/01. kl. 17:00 - 21:00",
     minimum_left: 422,
     minimum_left_text:
       "422,00 kr. fra minimumskøb på 500,00 kr. alt inkl. for at få hjemmelevering",
