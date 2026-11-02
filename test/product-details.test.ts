@@ -44,7 +44,7 @@ test("get_product_details returns the product's index record, cleaned up, with D
         {
           code: "description",
           title: "Beskrivelse",
-          text: expect.stringContaining("optimal smagsoplevelse."),
+          text: expect.stringContaining("not Bilka's text."),
         },
         {
           code: "ingredients",
@@ -92,8 +92,7 @@ test("get_product_details returns the product's index record, cleaned up, with D
             { name: "Holdbarhed efter åbning (dage)", value: "6 dage" },
             {
               name: "Opbevaringsinstruktioner",
-              value:
-                "Opbevaring: Opbevares ved højst 8°C, anbefales 5°C. Åbnet: 4-6 dage i køleskab (5°C). Ofte god efter.",
+              value: "Synthetic storage advice for tests: keep cold.",
             },
             { name: "Tilberedning", value: "Omrøres før brug." },
           ],
@@ -136,7 +135,7 @@ test("product text keeps its words but loses Bilka's HTML", async () => {
   );
   expect(description.text).not.toMatch(/[<>]/);
   expect(description.text).toContain(
-    "friske bær.\n\nOm Cheasy\n\nCheasy blev lanceret i 1991 og er en del af Arla Foods.",
+    "not Bilka's text.\n\nAbout the brand\n\nA second synthetic paragraph.",
   );
 });
 

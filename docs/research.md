@@ -77,7 +77,7 @@ Differences from the community code:
 - **`api/auth/LoginJWT` isn't needed.** A cart read with only the `jwt_token` header, no cookies, returned the same logged-in cart as one after LoginJWT. So the server can skip LoginJWT and its cookies. That matters, because LoginJWT replaces the account's cart with any `cart` cookie it's sent (nickknissen).
 - **OrderHistory works as `POST`**, as nickknissen sends it. stigvoss's `GET` wasn't tried.
 - **Delivery places and slots** aren't in either reference client (stigvoss only reads `v3/GetDeliveryDate`). They come from the website's network calls and its JS bundle, and one live round trip on 2026-11-02: home → Bilka Odense pickup → home, then the original slot set again; the cart ended exactly as it started.
-- All prices, totals and fees are in øre, as in Algolia. For example, `orderedPrice: 100934` is 1.009,34 kr.
+- All prices, totals and fees are in øre, as in Algolia. For example, `orderedPrice: 60145` is 601,45 kr.
 
 **The logged-out answer, captured live** (2026-11-02, `AvailableDeliveryDates` with no JWT): HTTP 200 with `{"msg": "Metoden kræver login", "code": "ACCESS_DENIED", "eid": 401, "uid": -1, "info_object": null}`. The code is a *string*, unlike nickknissen's `{"code": 1, "msg": "Du er ikke logget ind"}`; the server first only knew numeric codes, so it would have missed this. It now counts HTTP 401 or 403, or the envelope `{code, msg}` with `code: 1`, `code: "ACCESS_DENIED"` or a `uid` of 0 or less, as "not logged in", and then refreshes the JWT and retries once. Any other `{code, msg}` envelope is an ordinary error with no re-login. An *expired* JWT wasn't tried, but is expected to answer the same way.
 

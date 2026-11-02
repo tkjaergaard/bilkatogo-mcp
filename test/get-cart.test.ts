@@ -34,16 +34,22 @@ test("get_cart summarises the cart in DKK by default", async () => {
   // Worked by hand from test/support/carts.ts: øre / 100, services as fees.
   expect(result.json).toEqual({
     currency: "DKK",
-    total: 137.13,
+    total: 137.85,
     item_count: 3,
     lines: [
-      { product_id: "199126", name: "Pitabrød", quantity: 2, unit_price: 22.01, line_total: 44.02 },
       {
-        product_id: "142207",
-        name: "Tun i vand",
+        product_id: "900101",
+        name: "Rundstykker",
+        quantity: 2,
+        unit_price: 23.49,
+        line_total: 46.98,
+      },
+      {
+        product_id: "900102",
+        name: "Makrel i tomat",
         quantity: 1,
-        unit_price: 15.11,
-        line_total: 15.11,
+        unit_price: 12.87,
+        line_total: 12.87,
       },
     ],
     fees: [
@@ -81,7 +87,7 @@ test("get_cart returns the full cart when asked", async () => {
   expect(result.isError).toBe(false);
   expect(result.json).toMatchObject({
     currency: "DKK",
-    total: 137.13,
+    total: 137.85,
     item_count: 3,
     fees: [
       { name: "Pakkeservice", amount: 39 },
@@ -93,13 +99,13 @@ test("get_cart returns the full cart when asked", async () => {
       "422,00 kr. fra minimumskøb på 500,00 kr. alt inkl. for at få hjemmelevering",
   });
   expect(result.json.lines[0]).toEqual({
-    product_id: "199126",
-    name: "Pitabrød",
+    product_id: "900101",
+    name: "Rundstykker",
     quantity: 2,
-    unit_price: 22.01,
-    line_total: 44.02,
+    unit_price: 23.49,
+    line_total: 46.98,
     brand: "Salling",
-    size: "440 g",
+    size: "600 g",
     group: "Frost",
     unavailable_reason: null,
     note: null,
@@ -146,7 +152,7 @@ test("get_cart replaces the delivery address and notes with a marker instead of 
   const marker = "[personal data removed]";
   expect(result.json.delivery_address).toBe(marker);
   expect(result.json.delivery_notes).toBe(marker);
-  // The tuna line carries the customer's note, three levels down in Bilka's answer.
+  // The mackerel line carries the customer's note, three levels down in Bilka's answer.
   expect(result.json.lines[1].note).toBe(marker);
 });
 

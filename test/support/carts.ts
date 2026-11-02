@@ -1,6 +1,6 @@
 // Cart answers for tests, built from the scrubbed captures. The captured cart
 // (`shop-cart.json`) holds only the two service lines, so grocery lines are
-// taken from `shop-order-details.json`, which has the same
+// taken from the synthetic `shop-order-details.json`, which has the same
 // `lines[].lines[].orderlines[]` shape.
 
 import { loadFixture } from "./fake-bilka.ts";
@@ -27,7 +27,7 @@ export const CAPTURED_DELIVERY = {
   },
 };
 
-/** A grocery order line from the captured order, with a new quantity and an optional customer note. */
+/** A grocery order line from the synthetic order, with a new quantity and an optional customer note. */
 function groceryLine(productId: number, quantity: number, comment = ""): Record<string, any> {
   const order = loadFixture("shop-order-details.json").order;
   for (const group of order.lines) {
@@ -48,21 +48,21 @@ function groceryLine(productId: number, quantity: number, comment = ""): Record<
 }
 
 /**
- * The captured cart plus two grocery lines: 2 × Pitabrød (22,01 kr.) in
- * "Frost" and 1 × Tun i vand (15,11 kr.) in "Kolonial", the tuna with a
- * personal note. Total 44,02 + 15,11 + 78,00 in fees = 137,13 kr.
+ * The captured cart plus two grocery lines: 2 × Rundstykker (23,49 kr.) in
+ * "Frost" and 1 × Makrel i tomat (12,87 kr.) in "Kolonial", the mackerel with a
+ * personal note. Total 46,98 + 12,87 + 78,00 in fees = 137,85 kr.
  */
 export function groceryCart(): Record<string, any> {
   const cart = loadFixture("shop-cart.json");
-  const pita = groceryLine(199126, 2);
-  const tuna = groceryLine(142207, 1, "FAKE-NOTE: ring til Test Testesen på 12345678");
+  const rolls = groceryLine(900101, 2);
+  const mackerel = groceryLine(900102, 1, "FAKE-NOTE: ring til Test Testesen på 12345678");
   cart.lines.push(
-    { headline: "Frost", type: "", lines: [{ orderlines: [pita], discounts: [] }] },
-    { headline: "Kolonial", type: "", lines: [{ orderlines: [tuna], discounts: [] }] },
+    { headline: "Frost", type: "", lines: [{ orderlines: [rolls], discounts: [] }] },
+    { headline: "Kolonial", type: "", lines: [{ orderlines: [mackerel], discounts: [] }] },
   );
-  cart.stat.price += pita.amount + tuna.amount;
+  cart.stat.price += rolls.amount + mackerel.amount;
   cart.stat.amount += 3;
   cart.stat.prod_amount = 3;
-  cart.stat.prod_price = pita.amount + tuna.amount;
+  cart.stat.prod_price = rolls.amount + mackerel.amount;
   return cart;
 }

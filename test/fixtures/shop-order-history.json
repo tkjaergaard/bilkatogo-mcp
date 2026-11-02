@@ -5,19 +5,19 @@
     {
       "orderId": "900000000001",
       "uncollected_fee": null,
-      "deliveryDate": "2026-07-27",
-      "displayDeliveryDate": "2026-07-27",
-      "deliveryMessage": "Man. 27/07. Senest kl. 06:00",
-      "content": "Pitabrød, Tun i vand, Agurk øko, Hjertesalat øko",
-      "totalProductAmount": 34,
+      "deliveryDate": "2026-01-12",
+      "displayDeliveryDate": "2026-01-12",
+      "deliveryMessage": "Man. 12/01. Senest kl. 06:00",
+      "content": "Rundstykker, Makrel i tomat, Kikærter øko, Gulerødder øko",
+      "totalProductAmount": 20,
       "deliveryInterval": {
         "start": "00:00:00",
         "end": "06:00:00"
       },
       "ordered": {
         "channel": "Web",
-        "date": "2026-07-25",
-        "time": "16:14:18"
+        "date": "2026-01-10",
+        "time": "10:00:00"
       },
       "pickupzone": {
         "recipient_name": "Test Testesen",
@@ -38,8 +38,8 @@
         "deliveryComment": "FAKE-NOTE: stil ved døren",
         "doorcode": ""
       },
-      "orderedPrice": 100934,
-      "packedPrice": 100934,
+      "orderedPrice": 60145,
+      "packedPrice": 60145,
       "status": "Faktureret",
       "name": "Test Testesen",
       "address": "Testvej 1, 1. tv",
@@ -51,19 +51,19 @@
     {
       "orderId": "900000000002",
       "uncollected_fee": null,
-      "deliveryDate": "2025-05-17",
-      "displayDeliveryDate": "2025-05-17",
-      "deliveryMessage": "Lør. 17/05. kl. 12:00 - 14:00",
-      "content": "Chiliflager øko, Basilikum øko, Grovkornet sennep,",
-      "totalProductAmount": 45,
+      "deliveryDate": "2025-12-06",
+      "displayDeliveryDate": "2025-12-06",
+      "deliveryMessage": "Lør. 06/12. kl. 12:00 - 14:00",
+      "content": "Havregryn øko, Persille øko, Dijonsennep,",
+      "totalProductAmount": 30,
       "deliveryInterval": {
         "start": "12:00:00",
         "end": "14:00:00"
       },
       "ordered": {
         "channel": "IOS App",
-        "date": "2025-05-16",
-        "time": "17:59:32"
+        "date": "2025-12-05",
+        "time": "18:30:00"
       },
       "pickupzone": {
         "recipient_name": "",
@@ -84,8 +84,8 @@
         "deliveryComment": null,
         "doorcode": null
       },
-      "orderedPrice": 118595,
-      "packedPrice": 99465,
+      "orderedPrice": 75990,
+      "packedPrice": 70245,
       "status": "Faktureret",
       "name": "Test Testesen",
       "address": "Testvej 1, 1. tv",

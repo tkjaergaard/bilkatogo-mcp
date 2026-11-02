@@ -41,14 +41,14 @@ test("get_order_history lists each order's id, dates, status, total and preview 
     orders: [
       {
         order_id: "900000000001",
-        ordered_on: "2026-07-25",
-        delivery_date: "2026-07-27",
-        delivery_slot: "Man. 27/07. Senest kl. 06:00",
+        ordered_on: "2026-01-10",
+        delivery_date: "2026-01-12",
+        delivery_slot: "Man. 12/01. Senest kl. 06:00",
         status: "Faktureret",
-        total: 1009.34,
-        ordered_total: 1009.34,
-        item_count: 34,
-        preview: "Pitabrød, Tun i vand, Agurk øko, Hjertesalat øko",
+        total: 601.45,
+        ordered_total: 601.45,
+        item_count: 20,
+        preview: "Rundstykker, Makrel i tomat, Kikærter øko, Gulerødder øko",
         name: "[personal data removed]",
         address: "[personal data removed]",
         zipcity: "[personal data removed]",
@@ -56,14 +56,14 @@ test("get_order_history lists each order's id, dates, status, total and preview 
       },
       {
         order_id: "900000000002",
-        ordered_on: "2025-05-16",
-        delivery_date: "2025-05-17",
-        delivery_slot: "Lør. 17/05. kl. 12:00 - 14:00",
+        ordered_on: "2025-12-05",
+        delivery_date: "2025-12-06",
+        delivery_slot: "Lør. 06/12. kl. 12:00 - 14:00",
         status: "Faktureret",
-        total: 994.65,
-        ordered_total: 1185.95,
-        item_count: 45,
-        preview: "Chiliflager øko, Basilikum øko, Grovkornet sennep,",
+        total: 702.45,
+        ordered_total: 759.9,
+        item_count: 30,
+        preview: "Havregryn øko, Persille øko, Dijonsennep,",
         name: "[personal data removed]",
         address: "[personal data removed]",
         zipcity: "[personal data removed]",
@@ -103,30 +103,30 @@ test("get_order_details returns the items, totals, fees and slot in DKK", async 
     currency: "DKK",
     order_id: "900000000001",
     status: "Faktureret",
-    ordered_on: "2026-07-25",
-    delivery_date: "2026-07-27",
-    delivery_slot: "Man. 27/07. Senest kl. 06:00",
+    ordered_on: "2026-01-10",
+    delivery_date: "2026-01-12",
+    delivery_slot: "Man. 12/01. Senest kl. 06:00",
     store: "Bilka: Odense",
-    item_count: 34,
-    totals: { total: 1009.34, products: 931.34, deposit: 0, offer_savings: 87.73, vat: 201.87 },
+    item_count: 20,
+    totals: { total: 601.45, products: 523.45, deposit: 0, offer_savings: 42.1, vat: 120.29 },
     fees: [
       { name: "Leveringsgebyr", amount: 39 },
       { name: "Pakkeservice", amount: 39 },
     ],
   });
   expect(result.json.items.map((item: { name: string }) => item.name)).toEqual([
-    "Pitabrød",
-    "Tun i vand",
-    "Majs øko",
+    "Rundstykker",
+    "Makrel i tomat",
+    "Kikærter øko",
   ]);
   expect(result.json.items[2]).toEqual({
-    product_id: "141655",
-    name: "Majs øko",
+    product_id: "900103",
+    name: "Kikærter øko",
     brand: "Salling ØKO",
-    size: "140 g",
+    size: "400 g",
     quantity: 1,
-    unit_price: 7.51,
-    price_paid: 7.51,
+    unit_price: 7.63,
+    price_paid: 7.63,
     offer: null,
     group: "Kolonial",
     unavailable_reason: null,
@@ -137,17 +137,17 @@ test("get_order_details returns the items, totals, fees and slot in DKK", async 
 test("get_order_details gives the offer text an item was bought on", async () => {
   const { callTool, bilka } = await connect(withLoginToken);
   const order = bilka.orderDetails["900000000001"]!;
-  const tuna = order.lines[2].lines[0].orderlines[0];
-  tuna.quantity = 2;
-  tuna.amount = 2000;
-  tuna.unitprice = 1000;
-  tuna.product.cpOffer = true;
-  tuna.product.cpOfferMsg = "Plus pris 10,00";
+  const mackerel = order.lines[2].lines[0].orderlines[0];
+  mackerel.quantity = 2;
+  mackerel.amount = 2000;
+  mackerel.unitprice = 1000;
+  mackerel.product.cpOffer = true;
+  mackerel.product.cpOfferMsg = "Plus pris 10,00";
 
   const result = await callTool("get_order_details", { order_id: "900000000001" });
 
   expect(result.json.items[1]).toMatchObject({
-    name: "Tun i vand",
+    name: "Makrel i tomat",
     quantity: 2,
     unit_price: 10,
     price_paid: 20,
@@ -235,7 +235,7 @@ test("get_order_details replaces the delivery address and notes with a marker", 
   const marker = "[personal data removed]";
   expect(result.json.delivery_address).toBe(marker);
   expect(result.json.delivery_notes).toBe(marker);
-  // The customer's note on the pita line, four levels down in Bilka's answer.
+  // The customer's note on the rolls line, four levels down in Bilka's answer.
   expect(result.json.items[0].note).toBe(marker);
 });
 

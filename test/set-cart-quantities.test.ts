@@ -13,8 +13,8 @@ test("set_cart_quantities applies the items in order and returns each outcome an
   const result = await callTool("set_cart_quantities", {
     items: [
       { product_id: "19753", quantity: 2 },
-      { product_id: "199126", quantity: 0 },
-      { product_id: "142207", quantity: 3 },
+      { product_id: "900101", quantity: 0 },
+      { product_id: "900102", quantity: 3 },
     ],
   });
 
@@ -25,10 +25,10 @@ test("set_cart_quantities applies the items in order and returns each outcome an
       .map((call) => [call.url.searchParams.get("productId"), call.url.searchParams.get("count")]),
   ).toEqual([
     ["19753", "2"],
-    ["199126", "0"],
-    ["142207", "3"],
+    ["900101", "0"],
+    ["900102", "3"],
   ]);
-  // Worked by hand: 2 × 30,95 = 61,90 skyr; 3 × 15,11 = 45,33 tuna; 78,00 in fees.
+  // Worked by hand: 2 × 30,95 = 61,90 skyr; 3 × 12,87 = 38,61 mackerel; 78,00 in fees.
   expect(result.json).toEqual({
     items: [
       {
@@ -43,7 +43,7 @@ test("set_cart_quantities applies the items in order and returns each outcome an
         error: null,
       },
       {
-        product_id: "199126",
+        product_id: "900101",
         requested_quantity: 0,
         status: "ok",
         attempts: 1,
@@ -54,12 +54,12 @@ test("set_cart_quantities applies the items in order and returns each outcome an
         error: null,
       },
       {
-        product_id: "142207",
+        product_id: "900102",
         requested_quantity: 3,
         status: "ok",
         attempts: 1,
         quantity: 3,
-        unit_price: 15.11,
+        unit_price: 12.87,
         bilka_message: null,
         offer_limit_message: null,
         error: null,
@@ -69,15 +69,15 @@ test("set_cart_quantities applies the items in order and returns each outcome an
     failed: 0,
     cart: {
       currency: "DKK",
-      total: 185.23,
+      total: 178.51,
       item_count: 5,
       lines: [
         {
-          product_id: "142207",
-          name: "Tun i vand",
+          product_id: "900102",
+          name: "Makrel i tomat",
           quantity: 3,
-          unit_price: 15.11,
-          line_total: 45.33,
+          unit_price: 12.87,
+          line_total: 38.61,
         },
         {
           product_id: "19753",
@@ -103,8 +103,8 @@ test("set_cart_quantities waits 250 ms between the items it sends, at the pace o
   await callTool("set_cart_quantities", {
     items: [
       { product_id: "19753", quantity: 2 },
-      { product_id: "199126", quantity: 0 },
-      { product_id: "142207", quantity: 3 },
+      { product_id: "900101", quantity: 0 },
+      { product_id: "900102", quantity: 3 },
     ],
   });
 
@@ -123,7 +123,7 @@ test.each([
   fail(bilka);
 
   const result = await callTool("set_cart_quantities", {
-    items: [{ product_id: "199126", quantity: 4 }],
+    items: [{ product_id: "900101", quantity: 4 }],
   });
 
   expect(result.isError).toBe(false);
@@ -133,7 +133,7 @@ test.each([
   ]);
   expect(sleeps).toHaveLength(2);
   expect(sleeps[1]).toBeGreaterThan(sleeps[0] ?? Infinity);
-  expect(result.json.cart.lines[0]).toMatchObject({ product_id: "199126", quantity: 4 });
+  expect(result.json.cart.lines[0]).toMatchObject({ product_id: "900101", quantity: 4 });
 });
 
 test("set_cart_quantities gives an item up after three retries", async () => {
@@ -142,7 +142,7 @@ test("set_cart_quantities gives an item up after three retries", async () => {
   bilka.failTimes("shop.ChangeLineCount", 4, 503);
 
   const result = await callTool("set_cart_quantities", {
-    items: [{ product_id: "199126", quantity: 4 }],
+    items: [{ product_id: "900101", quantity: 4 }],
   });
 
   expect(result.isError).toBe(false);
@@ -153,14 +153,14 @@ test("set_cart_quantities gives an item up after three retries", async () => {
   expect(result.json).toMatchObject({ ok: 0, failed: 1 });
   const [item] = result.json.items;
   expect(item).toEqual({
-    product_id: "199126",
+    product_id: "900101",
     requested_quantity: 4,
     status: "failed",
     attempts: 4,
     error: expect.stringMatching(/HTTP 503.*temporary/is),
   });
   // The cart afterwards shows whether any attempt got through.
-  expect(result.json.cart.lines[0]).toMatchObject({ product_id: "199126", quantity: 2 });
+  expect(result.json.cart.lines[0]).toMatchObject({ product_id: "900101", quantity: 2 });
 });
 
 test("set_cart_quantities records an item Bilka rejected at once, without retrying", async () => {
@@ -169,7 +169,7 @@ test("set_cart_quantities records an item Bilka rejected at once, without retryi
   bilka.failTimes("shop.ChangeLineCount", 1, 400);
 
   const result = await callTool("set_cart_quantities", {
-    items: [{ product_id: "199126", quantity: 4 }],
+    items: [{ product_id: "900101", quantity: 4 }],
   });
 
   expect(result.isError).toBe(false);
@@ -187,7 +187,7 @@ test("set_cart_quantities records an item at once, without retrying, when Bilka 
   bilka.unreachable("shop.ChangeLineCount");
 
   const result = await callTool("set_cart_quantities", {
-    items: [{ product_id: "199126", quantity: 4 }],
+    items: [{ product_id: "900101", quantity: 4 }],
   });
 
   expect(result.isError).toBe(false);
@@ -207,8 +207,8 @@ test("set_cart_quantities carries on past a failed item", async () => {
   const result = await callTool("set_cart_quantities", {
     items: [
       { product_id: "999999", quantity: 1 },
-      { product_id: "199126", quantity: 3 },
-      { product_id: "142207", quantity: 0 },
+      { product_id: "900101", quantity: 3 },
+      { product_id: "900102", quantity: 0 },
     ],
   });
 
@@ -221,12 +221,12 @@ test("set_cart_quantities carries on past a failed item", async () => {
     ]),
   ).toEqual([
     ["999999", "failed"],
-    ["199126", "ok"],
-    ["142207", "ok"],
+    ["900101", "ok"],
+    ["900102", "ok"],
   ]);
   expect(result.json).toMatchObject({ ok: 2, failed: 1 });
   expect(result.json.cart.lines).toEqual([
-    expect.objectContaining({ product_id: "199126", quantity: 3 }),
+    expect.objectContaining({ product_id: "900101", quantity: 3 }),
   ]);
 });
 
@@ -237,16 +237,16 @@ test("set_cart_quantities keeps the item outcomes when reading the cart afterwar
 
   const result = await callTool("set_cart_quantities", {
     items: [
-      { product_id: "199126", quantity: 3 },
-      { product_id: "142207", quantity: 0 },
+      { product_id: "900101", quantity: 3 },
+      { product_id: "900102", quantity: 0 },
     ],
   });
 
   expect(result.isError).toBe(false);
   expect(result.json).toEqual({
     items: [
-      expect.objectContaining({ product_id: "199126", status: "ok", quantity: 3 }),
-      expect.objectContaining({ product_id: "142207", status: "ok", quantity: 0 }),
+      expect.objectContaining({ product_id: "900101", status: "ok", quantity: 3 }),
+      expect.objectContaining({ product_id: "900102", status: "ok", quantity: 0 }),
     ],
     ok: 2,
     failed: 0,
@@ -260,8 +260,8 @@ test.each([
   [
     "a repeated product",
     [
-      { product_id: "199126", quantity: 1 },
-      { product_id: "199126", quantity: 2 },
+      { product_id: "900101", quantity: 1 },
+      { product_id: "900101", quantity: 2 },
     ],
   ],
   [
@@ -275,7 +275,7 @@ test.each([
     "a negative quantity",
     [
       { product_id: "19753", quantity: 1 },
-      { product_id: "199126", quantity: -1 },
+      { product_id: "900101", quantity: -1 },
     ],
   ],
   ["a quantity over the line maximum", [{ product_id: "19753", quantity: 51 }]],
@@ -297,8 +297,8 @@ test("the batch maximum comes from the server's limits", async () => {
   });
   const items = [
     { product_id: "19753", quantity: 1 },
-    { product_id: "199126", quantity: 1 },
-    { product_id: "142207", quantity: 1 },
+    { product_id: "900101", quantity: 1 },
+    { product_id: "900102", quantity: 1 },
   ];
 
   const tooMany = await callTool("set_cart_quantities", { items });
@@ -327,19 +327,19 @@ test("set_cart_quantities returns the full cart when asked", async () => {
   bilka.cart = groceryCart();
 
   const result = await callTool("set_cart_quantities", {
-    items: [{ product_id: "199126", quantity: 3 }],
+    items: [{ product_id: "900101", quantity: 3 }],
     full: true,
   });
 
   expect(result.isError).toBe(false);
   expect(result.json.cart).toMatchObject({
-    total: 159.14,
+    total: 161.34,
     item_count: 4,
     delivery_address: "[personal data removed]",
     delivery_notes: "[personal data removed]",
   });
   expect(result.json.cart.lines[0]).toMatchObject({
-    product_id: "199126",
+    product_id: "900101",
     quantity: 3,
     group: "Frost",
   });
@@ -353,8 +353,8 @@ test.each([false, true])(
 
     const result = await callTool("set_cart_quantities", {
       items: [
-        { product_id: "142207", quantity: 2 },
-        { product_id: "199126", quantity: 1 },
+        { product_id: "900102", quantity: 2 },
+        { product_id: "900101", quantity: 1 },
       ],
       full,
     });
@@ -374,8 +374,8 @@ test("set_cart_quantities stops at an expired login instead of failing every ite
 
   const result = await callTool("set_cart_quantities", {
     items: [
-      { product_id: "199126", quantity: 3 },
-      { product_id: "142207", quantity: 0 },
+      { product_id: "900101", quantity: 3 },
+      { product_id: "900102", quantity: 0 },
       { product_id: "19753", quantity: 1 },
     ],
   });
@@ -384,15 +384,15 @@ test("set_cart_quantities stops at an expired login instead of failing every ite
   // Only the first item reaches Bilka (the session refreshes and retries it once).
   expect(
     new Set(bilka.calls("shop.ChangeLineCount").map((c) => c.url.searchParams.get("productId"))),
-  ).toEqual(new Set(["199126"]));
+  ).toEqual(new Set(["900101"]));
   expect(sleeps).toEqual([]);
   const [first, ...rest] = result.json.items;
-  expect(first).toMatchObject({ product_id: "199126", status: "failed", attempts: 1 });
+  expect(first).toMatchObject({ product_id: "900101", status: "failed", attempts: 1 });
   expect(first.error).toMatch(/isn't logged in/);
   expect(first.error).toMatch(/BILKATOGO_LOGIN_TOKEN/);
   expect(rest).toEqual([
     {
-      product_id: "142207",
+      product_id: "900102",
       requested_quantity: 0,
       status: "failed",
       attempts: 0,
@@ -417,8 +417,8 @@ test("set_cart_quantities stops when an item gives up on HTTP 429, so the rest d
 
   const result = await callTool("set_cart_quantities", {
     items: [
-      { product_id: "199126", quantity: 3 },
-      { product_id: "142207", quantity: 0 },
+      { product_id: "900101", quantity: 3 },
+      { product_id: "900102", quantity: 0 },
       { product_id: "19753", quantity: 1 },
     ],
   });
@@ -427,11 +427,11 @@ test("set_cart_quantities stops when an item gives up on HTTP 429, so the rest d
   expect(bilka.calls("shop.ChangeLineCount")).toHaveLength(4);
   expect(sleeps).toHaveLength(3);
   const [first, ...rest] = result.json.items;
-  expect(first).toMatchObject({ product_id: "199126", status: "failed", attempts: 4 });
+  expect(first).toMatchObject({ product_id: "900101", status: "failed", attempts: 4 });
   expect(first.error).toMatch(/HTTP 429/);
   expect(rest).toEqual([
     {
-      product_id: "142207",
+      product_id: "900102",
       requested_quantity: 0,
       status: "failed",
       attempts: 0,
@@ -453,8 +453,8 @@ test("set_cart_quantities without a configured login sends nothing to the shop",
 
   const result = await callTool("set_cart_quantities", {
     items: [
-      { product_id: "199126", quantity: 3 },
-      { product_id: "142207", quantity: 0 },
+      { product_id: "900101", quantity: 3 },
+      { product_id: "900102", quantity: 0 },
     ],
   });
 

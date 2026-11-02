@@ -1,20 +1,20 @@
 {
   "order": {
     "stat": {
-      "amount": 36,
-      "diff": 33,
-      "price": 100934,
-      "price_vat": 20187,
+      "amount": 22,
+      "diff": 19,
+      "price": 60145,
+      "price_vat": 12029,
       "serv_amount": 0,
       "serv_diff": 0,
       "serv_price": 0,
-      "prod_amount": 34,
-      "prod_amount_no_deposits": 34,
-      "prod_diff": 31,
-      "prod_price": 93134,
+      "prod_amount": 20,
+      "prod_amount_no_deposits": 20,
+      "prod_diff": 17,
+      "prod_price": 52345,
       "ageCode": 0,
       "verified_ageCode": 999,
-      "promo": 8773,
+      "promo": 4210,
       "oos": false,
       "has_replacements": false,
       "blockedByHoliday": false,
@@ -27,8 +27,8 @@
       "personalized_offer_discount": 0,
       "packing": 3900,
       "packaging_price": 0,
-      "price_no_promo": 101907,
-      "subtotal_no_promo": 105807,
+      "price_no_promo": 56555,
+      "subtotal_no_promo": 60455,
       "uncollected_fee": null,
       "global_discounts": [],
       "vouchers": [],
@@ -59,7 +59,7 @@
       ]
     },
     "orderId": "900000000001",
-    "deliveryDate": "2026-07-27",
+    "deliveryDate": "2026-01-12",
     "deliveryDay": "Man",
     "deliveryInterval": {
       "start": "00:00:00",
@@ -84,16 +84,16 @@
       "deliveryComment": "FAKE-NOTE: stil ved døren",
       "doorcode": ""
     },
-    "deliveryMessage": "Man. 27/07. Senest kl. 06:00",
+    "deliveryMessage": "Man. 12/01. Senest kl. 06:00",
     "ordered": {
       "channel": "Web",
-      "date": "2026-07-25",
-      "time": "16:14:18"
+      "date": "2026-01-10",
+      "time": "10:00:00"
     },
-    "price": 100934,
+    "price": 60145,
     "status": "Faktureret",
     "routeplanned": true,
-    "totalProductAmount": 34,
+    "totalProductAmount": 20,
     "lines": [
       {
         "headline": "Services",
@@ -106,7 +106,7 @@
                 "amount": 3900,
                 "net_unitprice": 3900,
                 "unitprice": 3900,
-                "sort": 267181427,
+                "sort": 100000001,
                 "product": {
                   "objectID": 119085,
                   "erpProductID": "906540-EA",
@@ -164,7 +164,7 @@
                 "amount": 3900,
                 "net_unitprice": 3900,
                 "unitprice": 3900,
-                "sort": 267181428,
+                "sort": 100000002,
                 "product": {
                   "objectID": 81474,
                   "erpProductID": "87418611-EA",
@@ -225,23 +225,23 @@
             "orderlines": [
               {
                 "quantity": 1,
-                "amount": 2201,
-                "net_unitprice": 2201,
-                "unitprice": 2201,
-                "sort": 296242092,
+                "amount": 2349,
+                "net_unitprice": 2349,
+                "unitprice": 2349,
+                "sort": 100000003,
                 "product": {
-                  "objectID": 199126,
-                  "erpProductID": "11171252-EA",
-                  "name": "Pitabrød",
+                  "objectID": 900101,
+                  "erpProductID": "900101-EA",
+                  "name": "Rundstykker",
                   "link": "",
-                  "article": "11171252",
-                  "price": 2195,
+                  "article": "900101",
+                  "price": 2345,
                   "brand": "Salling",
                   "subBrand": "",
                   "countryOfOrigin": [],
-                  "units": 440,
+                  "units": 600,
                   "unitsOfMeasure": "g",
-                  "unitsOfMeasurePrice": 4989,
+                  "unitsOfMeasurePrice": 3908,
                   "unitsOfMeasureOfferPrice": 0,
                   "unitsOfMeasurePriceUnit": "Kg.",
                   "properties": [],
@@ -259,12 +259,12 @@
                       "attributeNameAndIcon": "Frost > frost"
                     }
                   ],
-                  "productType": "Pitabrød",
+                  "productType": "Rundstykker",
                   "multipromo": 0,
                   "imageGUIDs": {
-                    "1": "684c87587d9801997c76c76f38495b72",
-                    "7": "d7ba3ce7b5e3b3936ec7248e7d2e3fb3",
-                    "11": "684c87587d9801997c76c76f38495b72"
+                    "1": "00000000000000000000000000900101",
+                    "7": "00000000000000000000000000900101",
+                    "11": "00000000000000000000000000900101"
                   },
                   "categories": {
                     "lvl0": ["Frost"],
@@ -306,23 +306,23 @@
             "orderlines": [
               {
                 "quantity": 1,
-                "amount": 1511,
-                "net_unitprice": 1511,
-                "unitprice": 1511,
-                "sort": 296242154,
+                "amount": 1287,
+                "net_unitprice": 1287,
+                "unitprice": 1287,
+                "sort": 100000004,
                 "product": {
-                  "objectID": 142207,
-                  "erpProductID": "10802765-EA",
-                  "name": "Tun i vand",
+                  "objectID": 900102,
+                  "erpProductID": "900102-EA",
+                  "name": "Makrel i tomat",
                   "link": "",
-                  "article": "10802765",
-                  "price": 1511,
+                  "article": "900102",
+                  "price": 1287,
                   "brand": "Salling",
                   "subBrand": "",
                   "countryOfOrigin": [],
-                  "units": 140,
+                  "units": 125,
                   "unitsOfMeasure": "g",
-                  "unitsOfMeasurePrice": 10793,
+                  "unitsOfMeasurePrice": 10296,
                   "unitsOfMeasureOfferPrice": 0,
                   "unitsOfMeasurePriceUnit": "Kg.",
                   "properties": ["Nøglehul"],
@@ -346,12 +346,12 @@
                       "attributeNameAndIcon": "Bæredygtig vildtfangede fisk og skaldyr - MSC mærket > msc"
                     }
                   ],
-                  "productType": "Tun i vand",
+                  "productType": "Makrel i tomat",
                   "multipromo": 0,
                   "imageGUIDs": {
-                    "1": "a95e59dfa2ffaf516a093f78e4455802",
-                    "7": "d58a01e791f952615ae6c22a5c041e38",
-                    "11": "a95e59dfa2ffaf516a093f78e4455802"
+                    "1": "00000000000000000000000000900102",
+                    "7": "00000000000000000000000000900102",
+                    "11": "00000000000000000000000000900102"
                   },
                   "categories": {
                     "lvl0": ["Køl"],
@@ -387,23 +387,23 @@
             "orderlines": [
               {
                 "quantity": 1,
-                "amount": 751,
-                "net_unitprice": 751,
-                "unitprice": 751,
-                "sort": 296242336,
+                "amount": 763,
+                "net_unitprice": 763,
+                "unitprice": 763,
+                "sort": 100000005,
                 "product": {
-                  "objectID": 141655,
-                  "erpProductID": "10701972-EA",
-                  "name": "Majs øko",
+                  "objectID": 900103,
+                  "erpProductID": "900103-EA",
+                  "name": "Kikærter øko",
                   "link": "",
-                  "article": "10701972",
-                  "price": 825,
+                  "article": "900103",
+                  "price": 850,
                   "brand": "Salling ØKO",
                   "subBrand": "",
                   "countryOfOrigin": [],
-                  "units": 140,
+                  "units": 400,
                   "unitsOfMeasure": "g",
-                  "unitsOfMeasurePrice": 5893,
+                  "unitsOfMeasurePrice": 2125,
                   "unitsOfMeasureOfferPrice": 0,
                   "unitsOfMeasurePriceUnit": "Kg.",
                   "properties": ["Økologisk", "Nøglehul"],
@@ -427,17 +427,17 @@
                       "attributeNameAndIcon": "Nøglehulsmærket > noeglehulsmaerket"
                     }
                   ],
-                  "productType": "Majs",
+                  "productType": "Kikærter",
                   "multipromo": 0,
                   "imageGUIDs": {
-                    "1": "354800699c705e90c57bc7707d13314f",
-                    "7": "f960f7dbf467b32403db6835e583eb27",
-                    "11": "354800699c705e90c57bc7707d13314f"
+                    "1": "00000000000000000000000000900103",
+                    "7": "00000000000000000000000000900103",
+                    "11": "00000000000000000000000000900103"
                   },
                   "categories": {
                     "lvl0": ["Kolonial"],
                     "lvl1": ["Kolonial > Konserves og survarer"],
-                    "lvl2": ["Kolonial > Konserves og survarer > Majs"]
+                    "lvl2": ["Kolonial > Konserves og survarer > Kikærter"]
                   },
                   "blockedByHoliday": false,
                   "msg": "",
@@ -494,7 +494,7 @@
     "payments": [
       {
         "providerId": "test-provider",
-        "amount": 100934
+        "amount": 60145
       }
     ],
     "transact": "0000001"
