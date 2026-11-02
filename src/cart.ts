@@ -1,0 +1,153 @@
+// Shapes the shop's cart answer (`shop/v6/Cart`) into model-friendly objects:
+// DKK instead of øre, clear field names, service fees apart from groceries.
+// Its input has already been through the privacy scrub.
+
+import { kroner } from "./money.ts";
+
+export type CartLine = {
+  product_id: string;
+  name: string;
+  quantity: number;
+  /** What one item costs, in DKK. */
+  unit_price: number | null;
+  /** quantity × unit price after line discounts, in DKK. */
+  line_total: number | null;
+  brand: string | null;
+  /** Package size, e.g. "440 g". */
+  size: string | null;
+  /** The shop's aisle heading for the line, e.g. "Frost". */
+  group: string | null;
+  /** Why Bilka can't supply the line, when it can't. */
+  unavailable_reason: string | null;
+  /** The customer's note on the line. Always a privacy marker when set. */
+  note: unknown;
+};
+
+export type CartFee = { name: string; amount: number | null };
+
+/** The whole cart. `summariseCart` picks the compact form from it. */
+export type Cart = {
+  currency: "DKK";
+  /** What the cart costs in total, fees included. */
+  total: number | null;
+  /** The number of grocery items: the sum of the lines' quantities. */
+  item_count: number;
+  lines: CartLine[];
+  /** Service lines such as "Pakkeservice" and "Leveringsgebyr". */
+  fees: CartFee[];
+  /** e.g. "Man. 27/07. kl. 18:00 - 22:00". */
+  delivery_slot: string | null;
+  /** How much more to buy before the order reaches Bilka's minimum, in DKK. */
+  minimum_left: number | null;
+  /** Bilka's note on the minimum, e.g. "422,00 kr. fra minimumskøb på 500,00 kr. …". */
+  minimum_left_text: string | null;
+  /** The delivery address. Always a privacy marker when set. */
+  delivery_address: unknown;
+  /** Door code, delivery and access notes. Always a privacy marker when set. */
+  delivery_notes: unknown;
+};
+
+export type CartSummary = Pick<Cart, "currency" | "total" | "item_count" | "fees"> & {
+  lines: Pick<CartLine, "product_id" | "name" | "quantity" | "unit_price" | "line_total">[];
+};
+
+// The heading Bilka files fees under. They're ordinary lines in the cart.
+const SERVICES_HEADLINE = "services";
+
+type ShopCart = {
+  stat?: {
+    price?: number;
+    minimum_left?: number;
+    minimum_left_text?: string;
+    delivery_comment?: unknown;
+  };
+  lines?: { headline?: string; lines?: { orderlines?: ShopOrderLine[] }[] }[];
+  deliveryAddress?: unknown;
+  deliveryDate?: { delivery_message?: string } | null;
+};
+
+type ShopOrderLine = {
+  quantity?: number;
+  amount?: number;
+  unitprice?: number;
+  unavailable_reason?: string;
+  comment?: unknown;
+  product?: {
+    objectID?: number | string;
+    name?: string;
+    brand?: string;
+    units?: number;
+    unitsOfMeasure?: string;
+  };
+};
+
+export function toCart(data: unknown): Cart {
+  const cart = (data ?? {}) as ShopCart;
+  const lines: CartLine[] = [];
+  const fees: CartFee[] = [];
+  for (const group of cart.lines ?? []) {
+    const headline = group.headline?.trim() || null;
+    for (const line of group.lines ?? []) {
+      for (const orderline of line.orderlines ?? []) {
+        const shaped = toCartLine(orderline, headline);
+        if (headline?.toLowerCase() === SERVICES_HEADLINE) {
+          fees.push({ name: shaped.name, amount: shaped.line_total });
+        } else {
+          lines.push(shaped);
+        }
+      }
+    }
+  }
+  return {
+    currency: "DKK",
+    total: kroner(cart.stat?.price),
+    item_count: lines.reduce((count, line) => count + line.quantity, 0),
+    lines,
+    fees,
+    delivery_slot: cart.deliveryDate?.delivery_message?.trim() || null,
+    minimum_left: kroner(cart.stat?.minimum_left),
+    minimum_left_text: plain(cart.stat?.minimum_left_text),
+    delivery_address: cart.deliveryAddress ?? null,
+    delivery_notes: cart.stat?.delivery_comment ?? null,
+  };
+}
+
+export function summariseCart(cart: Cart): CartSummary {
+  return {
+    currency: cart.currency,
+    total: cart.total,
+    item_count: cart.item_count,
+    lines: cart.lines.map(({ product_id, name, quantity, unit_price, line_total }) => ({
+      product_id,
+      name,
+      quantity,
+      unit_price,
+      line_total,
+    })),
+    fees: cart.fees,
+  };
+}
+
+function toCartLine(orderline: ShopOrderLine, group: string | null): CartLine {
+  const product = orderline.product ?? {};
+  const units = product.units;
+  const measure = product.unitsOfMeasure?.trim();
+  return {
+    product_id: String(product.objectID ?? ""),
+    name: product.name ?? "",
+    quantity: orderline.quantity ?? 0,
+    unit_price: kroner(orderline.unitprice),
+    line_total: kroner(orderline.amount),
+    brand: product.brand?.trim() || null,
+    size: typeof units === "number" && units > 0 && measure ? `${units} ${measure}` : null,
+    group,
+    unavailable_reason: orderline.unavailable_reason?.trim() || null,
+    note: orderline.comment === "" ? null : (orderline.comment ?? null),
+  };
+}
+
+/** Bilka's short notices carry a little HTML (`<strong>`). */
+function plain(html: string | undefined): string | null {
+  const text = (html ?? "").replace(/<[^>]*>/g, "").trim();
+  return text || null;
+}

@@ -42,6 +42,21 @@ type Script = { pattern: RoutePattern; respond: Responder; remaining: number };
 export const ALGOLIA_APP_ID = "F9VBJLR1BK";
 export const ALGOLIA_SEARCH_KEY = "1deaf41c87e729779f7695c00f190cc9";
 export const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
+export const GIGYA_API_KEY = "3_tA6BbV434FQqN73HnUG1KA3qFv8KiG4OqLu9eWPh7sKRqRizH5Vfv5Larmgrb4I2";
+
+/** The login token in the scrubbed fixtures (`gigya-login.json`). */
+export const LOGIN_TOKEN = "test-login-token";
+/** The JWT Gigya hands out for it (`gigya-jwt.json`). */
+export const JWT = "test-jwt";
+
+/** Gigya's answer to an unknown or expired login token. Unverified shape (SAP's error-code list). */
+export const GIGYA_INVALID_TOKEN = {
+  errorCode: 403005,
+  errorDetails: "Unauthorized user",
+  errorMessage: "Unauthorized user",
+  statusCode: 403,
+  statusReason: "Forbidden",
+};
 
 export function loadFixture<T = any>(name: string): T {
   return JSON.parse(readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8")) as T;
@@ -94,6 +109,12 @@ export class FakeBilka {
   ]);
   /** The public delivery-address list (stores and pickup points). */
   deliveryAddresses: Record<string, any> = loadFixture("available-delivery-addresses.json");
+  /** The login token Gigya accepts. */
+  loginToken = LOGIN_TOKEN;
+  /** The JWT Gigya issues and the shop accepts. */
+  jwt = JWT;
+  /** The logged-in cart `shop/v6/Cart` answers with. */
+  cart: Record<string, any> = loadFixture("shop-cart.json");
 
   private scripts: Script[] = [];
 
@@ -155,11 +176,12 @@ export class FakeBilka {
    * captured response.
    */
   rejectJwt(times = Number.POSITIVE_INFINITY): this {
-    return this.script(
-      "shop.*",
-      () => jsonResponse({ code: 1, msg: "Du er ikke logget ind" }),
-      times,
-    );
+    return this.script("shop.*", () => jsonResponse(NOT_LOGGED_IN), times);
+  }
+
+  /** Answer the JWT exchange as Gigya does for an unknown or expired login token. */
+  rejectLoginToken(times = Number.POSITIVE_INFINITY): this {
+    return this.script("gigya.getJWT", () => jsonResponse(GIGYA_INVALID_TOKEN, 403), times);
   }
 
   /**
@@ -205,7 +227,34 @@ export class FakeBilka {
       request.method === "GET"
         ? jsonResponse(this.deliveryAddresses)
         : jsonResponse({ message: "Method not allowed" }, 405),
+    "gigya.getJWT": (request) => this.gigyaGetJwt(request),
+    "shop.Cart": (request) =>
+      this.requireJwt(request) ??
+      (request.method === "GET"
+        ? jsonResponse(structuredClone(this.cart))
+        : jsonResponse({ message: "Method not allowed" }, 405)),
   };
+
+  /**
+   * Gigya's login token → JWT exchange. Answers like the capture
+   * (`gigya-jwt.json`) for the known token, otherwise with Gigya's error.
+   */
+  private gigyaGetJwt(request: RecordedRequest): Response {
+    const form = request.form();
+    if (request.method !== "POST" || form.get("apiKey") !== GIGYA_API_KEY) {
+      return jsonResponse({ errorCode: 400093, errorMessage: "Invalid ApiKey parameter" }, 400);
+    }
+    if (form.get("login_token") !== this.loginToken) {
+      return jsonResponse(GIGYA_INVALID_TOKEN, 403);
+    }
+    return jsonResponse({ ...loadFixture<object>("gigya-jwt.json"), id_token: this.jwt });
+  }
+
+  /** The shop's "not logged in" answer when the request lacks the current JWT. */
+  private requireJwt(request: RecordedRequest): Response | undefined {
+    if (request.headers.get("jwt_token") === this.jwt) return undefined;
+    return jsonResponse(NOT_LOGGED_IN);
+  }
 
   /**
    * Algolia's single-index query. Text relevance is Algolia's job, so the fake
@@ -272,6 +321,9 @@ export class FakeBilka {
     );
   }
 }
+
+/** The shop's answer without a valid JWT. Unverified shape, from nickknissen/bilkatogo. */
+const NOT_LOGGED_IN = { code: 1, msg: "Du er ikke logget ind" };
 
 function checkAlgoliaKey(request: RecordedRequest): Response | undefined {
   if (

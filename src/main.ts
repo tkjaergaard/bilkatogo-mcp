@@ -4,7 +4,8 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import { createServer } from "./server.ts";
+import { defaultLoginFile } from "./credentials.ts";
+import { createServer, type ServerConfig } from "./server.ts";
 
 // Anything that logs by accident must not corrupt the protocol stream.
 console.log = console.error;
@@ -13,15 +14,20 @@ console.debug = console.error;
 
 const storeId = process.env.BILKATOGO_STORE_ID?.trim() || undefined;
 
-serveStdio(
-  () =>
-    createServer({
-      fetch: globalThis.fetch,
-      sleep: (ms) => sleep(ms),
-      storeId,
-    }),
-  { onerror: (error) => console.error(`bilka-mcp: ${error.message}`) },
-);
+// One config object for the whole process: the server keeps its login session
+// per config, so every server the SDK builds from it shares one JWT.
+const config: ServerConfig = {
+  fetch: globalThis.fetch,
+  sleep: (ms) => sleep(ms),
+  storeId,
+  // Read only when a tool first needs the account.
+  credentials: { env: process.env, loginFile: defaultLoginFile(process.env) },
+  warn: (line) => console.error(`bilka-mcp: ${line}`),
+};
+
+serveStdio(() => createServer(config), {
+  onerror: (error) => console.error(`bilka-mcp: ${error.message}`),
+});
 
 console.error(
   `bilka-mcp: serving MCP on stdio (store ${storeId ?? "not configured; set BILKATOGO_STORE_ID"})`,

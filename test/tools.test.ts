@@ -7,6 +7,7 @@ const EXPECTED_TOOLS: Record<string, "read-only" | "destructive"> = {
   search_products: "read-only",
   get_product_details: "read-only",
   list_stores: "read-only",
+  get_cart: "read-only",
 };
 
 test("the server offers exactly the pinned tools", async () => {

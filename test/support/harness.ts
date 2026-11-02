@@ -12,7 +12,7 @@ import { FakeBilka } from "./fake-bilka.ts";
 
 export const STORE_ID = "1653";
 
-export type ConnectOptions = Partial<Omit<ServerConfig, "fetch" | "sleep">> & {
+export type ConnectOptions = Partial<Omit<ServerConfig, "fetch" | "sleep" | "warn">> & {
   /** Defaults to a fresh fake. Pass one to script it before connecting. */
   bilka?: FakeBilka;
   /** Defaults to MCP 2026-07-28 exactly. */
@@ -32,18 +32,24 @@ export type Connection = {
   bilka: FakeBilka;
   /** Durations passed to the injected sleep, in milliseconds. */
   sleeps: number[];
+  /** Lines the server wrote as diagnostics (stderr in production). */
+  warnings: string[];
   callTool(name: string, args?: Record<string, unknown>): Promise<ToolResult>;
 };
 
 export async function connect(options: ConnectOptions = {}): Promise<Connection> {
   const { bilka = new FakeBilka(), protocol = { pin: "2026-07-28" }, ...config } = options;
   const sleeps: number[] = [];
+  const warnings: string[] = [];
   const serverConfig: ServerConfig = {
     storeId: STORE_ID,
     ...config,
     fetch: bilka.fetch,
     sleep: async (ms) => {
       sleeps.push(ms);
+    },
+    warn: (line) => {
+      warnings.push(line);
     },
   };
 
@@ -63,6 +69,7 @@ export async function connect(options: ConnectOptions = {}): Promise<Connection>
     client,
     bilka,
     sleeps,
+    warnings,
     async callTool(name, args = {}) {
       const result = await client.callTool({ name, arguments: args });
       const text = (result.content as { type: string; text?: string }[])

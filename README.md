@@ -15,8 +15,9 @@ It speaks MCP 2026-07-28 and still serves clients that use the older `initialize
 | `search_products` | Searches the catalogue at your store. Prices in DKK, with regular price, saving and offer text for discounted products. Only in-stock products by default; can be limited to offers. | no |
 | `get_product_details` | Everything the catalogue holds about one product: size, prices, unit price, category, labels, and ingredients, allergens and nutrition where Bilka publishes them. | no |
 | `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves. | no |
+| `get_cart` | Reads your cart: each line's product, quantity, unit price and line total, the cart total, item count and fees, in DKK. A compact summary by default; `full` adds brand, size, delivery slot and the distance to Bilka's minimum order. | yes |
 
-Placing orders and payment stay on the website: the server can't do either.
+Placing orders and payment stay on the website: the server can't do either. Your name, address, door code and delivery notes are replaced with a marker before anything reaches the model.
 
 ## Requirements
 
@@ -34,6 +35,24 @@ Search only shows what one Bilka store carries, so the server needs that store's
 
 To find your store's id, ask your assistant to run `list_stores` ("which Bilka stores are there?"). It works before a store is configured and needs no login. Without a store id, `search_products` answers with an error that says how to set one.
 
+## Log in
+
+Tools that use your account (so far `get_cart`) need a BilkaToGo login token. The server reads it only when such a tool runs; search and the store list work without it.
+
+1. Log in on [bilkatogo.dk](https://www.bilkatogo.dk) in your browser.
+2. Open the developer console and run `localStorage.getItem("auth")`. The value is your login token.
+3. Give it to the server in one of two ways (the environment wins when both are set):
+   - the environment variable `BILKATOGO_LOGIN_TOKEN`, or
+   - `~/.config/bilka-mcp/login.json` (or under `$XDG_CONFIG_HOME`), readable only by you:
+
+     ```sh
+     mkdir -p ~/.config/bilka-mcp
+     printf '{"loginToken": "%s"}\n' 'PASTE-TOKEN-HERE' > ~/.config/bilka-mcp/login.json
+     chmod 600 ~/.config/bilka-mcp/login.json
+     ```
+
+The server swaps the token for a 24-hour session with Bilka's login service and keeps that session in memory. When the token expires or you log out in the browser, `get_cart` says so; paste a fresh one. Logging in with email and password comes later.
+
 ## Register it in Claude Code
 
 From the repo directory:
@@ -44,7 +63,7 @@ claude mcp add bilka -e BILKATOGO_STORE_ID=1654 -- node "$PWD/src/main.ts"
 
 Then ask Claude something like "find havremælk". Add `-s user` to make the server available in every project.
 
-The store id isn't a secret, so it's fine in the MCP config. Credentials (needed later for the cart and order history) belong in environment variables or in `~/.config/bilka-mcp/login.json` with mode 600, never in an MCP config you might commit.
+The store id isn't a secret, so it's fine in the MCP config. The login token is: keep it in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
 
 Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.ts` over stdio with `BILKATOGO_STORE_ID` set.
 

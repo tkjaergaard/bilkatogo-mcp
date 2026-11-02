@@ -2,6 +2,10 @@
 // hosts (Algolia, Gigya, the BilkaToGo shop API). Callers never see raw HTTP
 // or øre.
 
+import { type Cart, toCart } from "./cart.ts";
+import { kroner } from "./money.ts";
+import { scrubPersonalData } from "./scrub.ts";
+
 export const ALGOLIA_APP_ID = "F9VBJLR1BK";
 // The public, search-only key bilkatogo.dk ships to every browser.
 export const ALGOLIA_SEARCH_KEY = "1deaf41c87e729779f7695c00f190cc9";
@@ -9,6 +13,12 @@ export const ALGOLIA_HOST = `https://${ALGOLIA_APP_ID.toLowerCase()}-dsn.algolia
 export const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
 
 export const SHOP_HOST = "https://api.bilkatogo.dk";
+
+export const GIGYA_HOST = "https://accounts.eu1.gigya.com";
+// BilkaToGo's public Gigya site key, the one the website sends.
+export const GIGYA_API_KEY = "3_tA6BbV434FQqN73HnUG1KA3qFv8KiG4OqLu9eWPh7sKRqRizH5Vfv5Larmgrb4I2";
+/** How long a JWT from Gigya's exchange lives: 24 hours, the most Bilka's site asks for. */
+export const JWT_LIFETIME_SECONDS = 86_400;
 
 // Order history can take well over 5 seconds to answer.
 export const REQUEST_TIMEOUT_MS = 30_000;
@@ -100,6 +110,11 @@ export type SearchRequest = {
   onlyOffers: boolean;
 };
 
+/** Hands the client a JWT for shop calls that need the account. */
+export type Session = {
+  jwt(): Promise<string>;
+};
+
 export type BilkaClient = {
   searchProducts(request: SearchRequest): Promise<Product[]>;
   /**
@@ -112,6 +127,8 @@ export type BilkaClient = {
   }): Promise<ProductDetails | null>;
   /** Bilka's stores, one entry per store id. Public: needs no login. */
   listStores(): Promise<Store[]>;
+  /** The logged-in cart, with personal data already scrubbed. */
+  getCart(): Promise<Cart>;
 };
 
 /** A failure talking to Bilka. The message is safe to show the model. */
@@ -125,32 +142,105 @@ export class BilkaError extends Error {
   }
 }
 
-export function createBilkaClient(options: { fetch: typeof fetch }): BilkaClient {
-  const { fetch } = options;
+/** The shop answered that the request isn't logged in: the JWT is missing, expired or rejected. */
+export class NotLoggedInError extends BilkaError {
+  constructor(what: string) {
+    super(
+      `${what} failed: Bilka says the session isn't logged in. The login token has probably ` +
+        "expired; copy a fresh one from the browser and set BILKATOGO_LOGIN_TOKEN.",
+    );
+    this.name = "NotLoggedInError";
+  }
+}
+
+/** Sends one request with the standard timeout. Network failures become a BilkaError. */
+async function send(
+  fetch: typeof globalThis.fetch,
+  what: string,
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  } catch (error) {
+    const timedOut = error instanceof DOMException && error.name === "TimeoutError";
+    throw new BilkaError(timedOut ? `${what} timed out` : `${what} failed: could not reach Bilka`, {
+      cause: error,
+    });
+  }
+}
+
+async function readJson(what: string, response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (error) {
+    throw new BilkaError(`${what} answered with something that isn't JSON`, { cause: error });
+  }
+}
+
+/** The outcome of a Gigya call: Gigya reports errors in the body as well as the status. */
+export type GigyaAnswer = { status: number; body: Record<string, unknown> };
+
+/**
+ * Exchanges a Gigya login token for a shop JWT (`accounts.getJWT`). Throws a
+ * BilkaError when Gigya can't be reached; a rejection comes back as the answer
+ * so the caller can explain it without ever quoting the token.
+ */
+export async function exchangeLoginToken(
+  fetch: typeof globalThis.fetch,
+  loginToken: string,
+): Promise<{ jwt: string } | { rejected: GigyaAnswer }> {
+  const what = "BilkaToGo login (Gigya JWT exchange)";
+  const response = await send(fetch, what, `${GIGYA_HOST}/accounts.getJWT`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      apiKey: GIGYA_API_KEY,
+      login_token: loginToken,
+      expiration: String(JWT_LIFETIME_SECONDS),
+      httpStatusCodes: "true",
+    }),
+  });
+  const data = await readJson(what, response).catch(() => undefined);
+  const body = isRecord(data) ? data : {};
+  if (response.ok && body.errorCode === 0 && typeof body.id_token === "string" && body.id_token) {
+    return { jwt: body.id_token };
+  }
+  return { rejected: { status: response.status, body } };
+}
+
+export function createBilkaClient(options: { fetch: typeof fetch; session: Session }): BilkaClient {
+  const { fetch, session } = options;
 
   async function requestJson(what: string, url: string, init: RequestInit): Promise<unknown> {
-    let response: Response;
-    try {
-      response = await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-    } catch (error) {
-      const timedOut = error instanceof DOMException && error.name === "TimeoutError";
-      throw new BilkaError(
-        timedOut ? `${what} timed out` : `${what} failed: could not reach Bilka`,
-        {
-          cause: error,
-        },
-      );
-    }
+    const response = await send(fetch, what, url, init);
     if (!response.ok) {
       throw new BilkaError(`${what} failed with HTTP ${response.status}`, {
         status: response.status,
       });
     }
-    try {
-      return await response.json();
-    } catch (error) {
-      throw new BilkaError(`${what} answered with something that isn't JSON`, { cause: error });
-    }
+    return readJson(what, response);
+  }
+
+  /**
+   * A shop call that needs the account: the JWT goes in the `jwt_token` header
+   * and nothing else (no cookies; see docs/research.md §3). The answer is
+   * scrubbed of personal data before anything reads it.
+   */
+  async function shopJson(
+    what: string,
+    endpoint: string,
+    params: Record<string, string>,
+    init: RequestInit = { method: "GET" },
+  ): Promise<Record<string, unknown>> {
+    const jwt = await session.jwt();
+    const data = await requestJson(what, shopUrl(endpoint, params), {
+      ...init,
+      headers: { ...(init.headers as Record<string, string>), jwt_token: jwt },
+    });
+    if (!isRecord(data)) throw new BilkaError(`${what} answered with something unexpected`);
+    if (isNotLoggedIn(data)) throw new NotLoggedInError(what);
+    return scrubPersonalData(data) as Record<string, unknown>;
   }
 
   /** A shop API URL. The website adds `u=w` to every shop call, so do we. */
@@ -216,7 +306,27 @@ export function createBilkaClient(options: { fetch: typeof fetch }): BilkaClient
       const addresses = arrayField(data, "addresses", "Store list answered without stores");
       return toStores(addresses as DeliveryAddress[]);
     },
+
+    async getCart() {
+      const data = await shopJson("Cart read", "v6/Cart", {
+        extra: "deliveryAddress,deliveryDate",
+      });
+      return toCart(data);
+    },
   };
+}
+
+/**
+ * The shop's "not logged in" answer: HTTP 200 with a non-zero `code` and a
+ * `msg`, e.g. `{code: 1, msg: "Du er ikke logget ind"}`. Unverified shape,
+ * from nickknissen/bilkatogo; no live capture of it yet.
+ */
+function isNotLoggedIn(data: Record<string, unknown>): boolean {
+  return typeof data.code === "number" && data.code !== 0 && typeof data.msg === "string";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** The array under `key` in a decoded response, or a BilkaError saying what was missing. */
@@ -423,11 +533,6 @@ function plainText(html: string): string {
 
 function positive(value: number | undefined): number | undefined {
   return typeof value === "number" && value > 0 ? value : undefined;
-}
-
-/** øre → DKK. */
-function kroner(ore: number | undefined): number | null {
-  return ore === undefined ? null : Math.round(ore) / 100;
 }
 
 function normaliseUnit(unit: string | undefined): string | null {

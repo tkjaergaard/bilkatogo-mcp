@@ -11,7 +11,7 @@
 // Secrets (password, login token, JWT, session cookies) are never printed and
 // never written: secret fields in the saved responses become "<secret>".
 
-import { chmod, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import {
@@ -19,17 +19,21 @@ import {
   ALGOLIA_HOST,
   ALGOLIA_PRODUCT_INDEX,
   ALGOLIA_SEARCH_KEY,
+  GIGYA_API_KEY,
+  GIGYA_HOST,
+  JWT_LIFETIME_SECONDS,
   PRODUCT_ID_PATTERN,
   REQUEST_TIMEOUT_MS,
   SHOP_HOST,
 } from "../src/bilka.ts";
+import { type Credentials, defaultLoginFile, readCredentials } from "../src/credentials.ts";
+
+// The credential reader is shared with the server; re-exported for the tests.
+export { readCredentials };
 
 // Endpoint facts, from docs/research.md §3 and the request shapes in
 // nickknissen/bilkatogo (src/bilkatogo/client.py, const.py) and
 // stigvoss/bilkatogo-mcp (server.py).
-const GIGYA_BASE_URL = "https://accounts.eu1.gigya.com";
-const GIGYA_API_KEY = "3_tA6BbV434FQqN73HnUG1KA3qFv8KiG4OqLu9eWPh7sKRqRizH5Vfv5Larmgrb4I2";
-const JWT_LIFETIME_SECONDS = "86400";
 const API_BASE_URL = `${SHOP_HOST}/api`;
 const CART_PARAMS = { extra: "deliveryAddress,deliveryDate" };
 const ORDER_HISTORY_PARAMS = { limit: "5", offset: "0", muah: "1", ordertype: "dibs,pgw" };
@@ -44,12 +48,6 @@ const SECRET_KEY = /token|cookievalue|jwt|password|secret|signature/i;
 const SECRET_MARKER = "<secret>";
 
 export const REPO_ROOT = resolve(import.meta.dirname, "..");
-
-export type Credentials = {
-  email?: string;
-  password?: string;
-  loginToken?: string;
-};
 
 export type CaptureOptions = {
   fetch: typeof fetch;
@@ -117,41 +115,6 @@ export type Answer = {
   headers: Headers;
   body: unknown;
 };
-
-/** Reads credentials from the environment, then from login.json for anything still missing. */
-export async function readCredentials(
-  env: Record<string, string | undefined>,
-  loginFile: string,
-  warn: (line: string) => void,
-): Promise<Credentials> {
-  const fromEnv: Credentials = {
-    email: env.BILKATOGO_EMAIL?.trim() || undefined,
-    password: env.BILKATOGO_PASSWORD || undefined,
-    loginToken: env.BILKATOGO_LOGIN_TOKEN?.trim() || undefined,
-  };
-  let file: Record<string, unknown> = {};
-  try {
-    const info = await stat(loginFile);
-    if ((info.mode & 0o077) !== 0) {
-      warn(`warning: ${loginFile} is readable by others; run chmod 600 on it`);
-    }
-    const parsed: unknown = JSON.parse(await readFile(loginFile, "utf8"));
-    if (isRecord(parsed)) file = parsed;
-  } catch (error) {
-    if (!(isRecord(error) && error.code === "ENOENT")) {
-      warn(
-        `warning: could not read ${loginFile} (${errorName(error)}); using the environment only`,
-      );
-    }
-  }
-  const text = (value: unknown) =>
-    typeof value === "string" && value.trim() ? value.trim() : undefined;
-  return {
-    email: fromEnv.email ?? text(file.email),
-    password: fromEnv.password ?? (typeof file.password === "string" ? file.password : undefined),
-    loginToken: fromEnv.loginToken ?? text(file.loginToken) ?? text(file.login_token),
-  };
-}
 
 export function defaultOutDir(env: Record<string, string | undefined>, now: Date): string {
   const cacheHome = env.XDG_CACHE_HOME || join(homedir(), ".cache");
@@ -305,7 +268,7 @@ export async function runCapture(options: CaptureOptions): Promise<CaptureReport
   // 2. Gigya accounts.login, unless a login token was pasted.
   let loginToken = credentials.loginToken;
   if (!loginToken) {
-    const answer = await call("gigya-accounts.login", `${GIGYA_BASE_URL}/accounts.login`, {
+    const answer = await call("gigya-accounts.login", `${GIGYA_HOST}/accounts.login`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -332,13 +295,13 @@ export async function runCapture(options: CaptureOptions): Promise<CaptureReport
   }
 
   // 3. Gigya accounts.getJWT: login token -> JWT (24 h).
-  const jwtAnswer = await call("gigya-accounts.getJWT", `${GIGYA_BASE_URL}/accounts.getJWT`, {
+  const jwtAnswer = await call("gigya-accounts.getJWT", `${GIGYA_HOST}/accounts.getJWT`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       apiKey: GIGYA_API_KEY,
       login_token: loginToken,
-      expiration: JWT_LIFETIME_SECONDS,
+      expiration: String(JWT_LIFETIME_SECONDS),
       httpStatusCodes: "true",
     }),
   });
@@ -704,8 +667,7 @@ async function main(argv: string[]): Promise<number> {
     return 64;
   }
   const env = process.env;
-  const configHome = env.XDG_CONFIG_HOME || join(homedir(), ".config");
-  const loginFile = join(configHome, "bilka-mcp", "login.json");
+  const loginFile = defaultLoginFile(env);
   const credentials = await readCredentials(env, loginFile, (line) => console.error(line));
   const now = new Date();
   const report = await runCapture({

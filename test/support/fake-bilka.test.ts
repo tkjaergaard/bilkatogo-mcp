@@ -1,7 +1,7 @@
 // Checks the fake's own scripting, which later tickets rely on.
 
 import { expect, test } from "vitest";
-import { FakeBilka, routeOf } from "./fake-bilka.ts";
+import { FakeBilka, GIGYA_API_KEY, JWT, LOGIN_TOKEN, routeOf } from "./fake-bilka.ts";
 
 test("requests are routed by URL to Algolia, Gigya and shop routes", () => {
   expect(
@@ -19,13 +19,29 @@ test("requests are routed by URL to Algolia, Gigya and shop routes", () => {
 test("failTimes fails N requests with the status, then the default handler answers", async () => {
   const bilka = new FakeBilka().failTimes("shop.Cart", 2, 429);
   const url = "https://api.bilkatogo.dk/api/shop/v6/Cart?u=w";
+  const init = { headers: { jwt_token: JWT } };
 
   const statuses = [];
-  for (let i = 0; i < 3; i++) statuses.push((await bilka.fetch(url)).status);
+  for (let i = 0; i < 3; i++) statuses.push((await bilka.fetch(url, init)).status);
 
-  // The Cart has no default handler yet, so the third answer is 501.
-  expect(statuses).toEqual([429, 429, 501]);
+  expect(statuses).toEqual([429, 429, 200]);
   expect(bilka.calls("shop.*")).toHaveLength(3);
+});
+
+test("the JWT exchange accepts the fixture login token and the cart wants its JWT", async () => {
+  const bilka = new FakeBilka();
+  const exchange = (loginToken: string) =>
+    bilka.fetch("https://accounts.eu1.gigya.com/accounts.getJWT", {
+      method: "POST",
+      body: new URLSearchParams({ apiKey: GIGYA_API_KEY, login_token: loginToken }),
+    });
+  const cart = (jwt: string) =>
+    bilka.fetch("https://api.bilkatogo.dk/api/shop/v6/Cart?u=w", { headers: { jwt_token: jwt } });
+
+  expect(await (await exchange(LOGIN_TOKEN)).json()).toMatchObject({ errorCode: 0, id_token: JWT });
+  expect((await exchange("other-token")).status).toBe(403);
+  expect(await (await cart(JWT)).json()).toMatchObject({ stat: { price: 7800 } });
+  expect(await (await cart("other-jwt")).json()).toEqual({ code: 1, msg: "Du er ikke logget ind" });
 });
 
 test("timeOut makes fetch reject as an expired timeout signal would", async () => {
