@@ -8,6 +8,7 @@ const EXPECTED_TOOLS: Record<string, "read-only" | "destructive"> = {
   get_product_details: "read-only",
   list_stores: "read-only",
   get_cart: "read-only",
+  set_cart_quantity: "destructive",
 };
 
 test("the server offers exactly the pinned tools", async () => {
@@ -32,6 +33,15 @@ test("read-only tools are flagged read-only and writes are flagged destructive",
     }),
   );
   expect(kinds).toEqual(EXPECTED_TOOLS);
+});
+
+test("the cart setters are the only tools that write", async () => {
+  const { client } = await connect();
+
+  const { tools } = await client.listTools();
+
+  const writes = tools.filter((tool) => tool.annotations?.readOnlyHint !== true);
+  expect(writes.map((tool) => tool.name).sort()).toEqual(["set_cart_quantity"]);
 });
 
 test("no tool can place an order or touch payment", async () => {

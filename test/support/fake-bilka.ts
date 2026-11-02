@@ -236,6 +236,11 @@ export class FakeBilka {
       (request.method === "GET"
         ? jsonResponse(structuredClone(this.cart))
         : jsonResponse({ message: "Method not allowed" }, 405)),
+    "shop.ChangeLineCount": (request) =>
+      this.requireJwt(request) ??
+      (request.method === "GET"
+        ? this.changeLineCount(request)
+        : jsonResponse({ message: "Method not allowed" }, 405)),
   };
 
   /**
@@ -254,6 +259,65 @@ export class FakeBilka {
     const answer = loadFixture<Record<string, any>>("gigya-login.json");
     answer.sessionInfo.cookieValue = this.loginToken;
     return jsonResponse(answer);
+  }
+
+  /**
+   * Sets one product's line in `this.cart` to `count` (0 removes it) and
+   * answers like the capture (`shop-change-line-count.json`). A product not
+   * yet in the cart is added from the product index at its regular price.
+   */
+  private changeLineCount(request: RecordedRequest): Response {
+    const productId = request.url.searchParams.get("productId") ?? "";
+    const count = Number(request.url.searchParams.get("count"));
+    if (!Number.isInteger(count) || count < 0) {
+      throw new Error(`FakeBilka got ChangeLineCount with count ${JSON.stringify(count)}`);
+    }
+    const groups: { headline?: string; lines: { orderlines: Record<string, any>[] }[] }[] =
+      this.cart.lines;
+    let orderline: Record<string, any> | undefined;
+    for (const group of groups) {
+      for (const line of group.lines) {
+        line.orderlines = line.orderlines.filter((candidate) => {
+          if (String(candidate.product?.objectID) !== productId) return true;
+          orderline = candidate;
+          return count > 0;
+        });
+      }
+      group.lines = group.lines.filter((line) => line.orderlines.length > 0);
+    }
+    this.cart.lines = groups.filter((group) => group.lines.length > 0);
+    if (orderline === undefined && count > 0) {
+      const product = this.products.find((p) => p.objectID === productId);
+      if (product === undefined) {
+        throw new Error(`FakeBilka has no product ${productId} to add to the cart`);
+      }
+      orderline = {
+        quantity: 0,
+        unitprice: product.price,
+        amount: 0,
+        comment: "",
+        unavailable_reason: "",
+        product: { objectID: Number(productId), name: product.name, brand: product.brand },
+      };
+      this.cart.lines.push({ headline: "Diverse", type: "", lines: [{ orderlines: [orderline] }] });
+    }
+    if (orderline !== undefined) {
+      orderline.quantity = count;
+      orderline.amount = orderline.unitprice * count;
+    }
+    const all = this.cart.lines.flatMap((group: (typeof groups)[number]) =>
+      group.lines.flatMap((line) => line.orderlines),
+    );
+    this.cart.stat.price = all.reduce((sum: number, line: any) => sum + line.amount, 0);
+    this.cart.stat.amount = all.reduce((sum: number, line: any) => sum + line.quantity, 0);
+    return jsonResponse({
+      ...loadFixture<object>("shop-change-line-count.json"),
+      unitCount: this.cart.stat.amount,
+      sum: this.cart.stat.price,
+      productId,
+      productAmount: count,
+      productUnitPrice: count > 0 ? (orderline?.unitprice ?? 0) : 0,
+    });
   }
 
   /**
