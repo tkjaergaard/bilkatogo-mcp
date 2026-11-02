@@ -10,6 +10,14 @@ export function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
+/**
+ * Bilka's short notices without their little HTML (`<strong>`), whitespace
+ * collapsed to single spaces, or null when nothing is left.
+ */
+export function plain(html: string | undefined): string | null {
+  return text((html ?? "").replace(/<[^>]*>/g, "").replace(/\s+/g, " "));
+}
+
 /** A Node.js system error's code, e.g. "ENOENT". */
 export function errorCode(error: unknown): string | undefined {
   const code = isRecord(error) ? error.code : undefined;

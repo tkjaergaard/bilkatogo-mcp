@@ -2,9 +2,10 @@
 // DKK instead of øre, clear field names, service fees apart from groceries.
 // Its input has already been through the privacy scrub.
 
-import { type DeliveryPlace, toPlace } from "./delivery.ts";
+import { type ChosenSlot, chosenSlot, type DeliveryPlace, toPlace } from "./delivery.ts";
 import { kroner } from "./money.ts";
 import { REDACTED } from "./scrub.ts";
+import { plain } from "./values.ts";
 
 export type CartLine = {
   product_id: string;
@@ -32,15 +33,14 @@ export type CartDelivery = {
   /** The cart's delivery place, or null when Bilka didn't say. */
   place: DeliveryPlace | null;
   /** The slot set on the cart, or null when none is. */
-  slot: {
-    date: string;
-    start: string;
-    end: string;
-    /** e.g. "Søn. 08/11. Senest kl. 06:00". */
-    text: string | null;
-    /** False when the place doesn't offer this slot (any more), so another must be chosen. */
-    available: boolean;
-  } | null;
+  slot:
+    | (ChosenSlot & {
+        /** e.g. "Søn. 08/11. Senest kl. 06:00". */
+        text: string | null;
+        /** False when the place doesn't offer this slot (any more), so another must be chosen. */
+        available: boolean;
+      })
+    | null;
 };
 
 /** The whole cart. `summariseCart` picks the compact form from it. */
@@ -151,13 +151,12 @@ export function summariseCart(cart: Cart): CartSummary {
 }
 
 function toSlot(date: ShopCart["deliveryDate"]): CartDelivery["slot"] {
-  if (!date?.deliveryDate || !date.intervalStart || !date.intervalEnd) return null;
+  const slot = chosenSlot(date);
+  if (slot === null) return null;
   return {
-    date: date.deliveryDate,
-    start: date.intervalStart,
-    end: date.intervalEnd,
-    text: date.delivery_message?.trim() || null,
-    available: date.closed === 0,
+    ...slot,
+    text: date?.delivery_message?.trim() || null,
+    available: date?.closed === 0,
   };
 }
 
@@ -203,10 +202,4 @@ function toCartLine(orderline: ShopOrderLine, group: string | null): CartLine {
     unavailable_reason: orderline.unavailable_reason?.trim() || null,
     note: orderline.comment === "" ? null : (orderline.comment ?? null),
   };
-}
-
-/** Bilka's short notices carry a little HTML (`<strong>`). */
-function plain(html: string | undefined): string | null {
-  const text = (html ?? "").replace(/<[^>]*>/g, "").trim();
-  return text || null;
 }

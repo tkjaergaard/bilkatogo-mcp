@@ -5,6 +5,7 @@
 // Its input has already been through the privacy scrub.
 
 import { kroner } from "./money.ts";
+import { plain, text } from "./values.ts";
 import { PUBLIC_FACILITIES } from "./scrub.ts";
 
 /**
@@ -161,7 +162,7 @@ type ShopDates = {
 export function toDeliverySlots(data: unknown): DeliverySlots {
   const answer = (data ?? {}) as ShopDates;
   return {
-    chosen_slot: chosenSlot(answer.deliveryDate, answer.intervalStart, answer.intervalEnd),
+    chosen_slot: chosenSlot(answer),
     notice: plain(answer.msg),
     days: (answer.availableIntervals ?? []).flatMap((day) => {
       if (!day.date) return [];
@@ -183,11 +184,14 @@ export function toDeliverySlots(data: unknown): DeliverySlots {
   };
 }
 
-export function chosenSlot(
-  date: string | undefined,
-  start: string | undefined,
-  end: string | undefined,
-): ChosenSlot | null {
+/** Bilka's fields for a chosen slot, as the slot list, the cart and SetDeliveryDate give them. */
+type ShopChosenSlot = { deliveryDate?: unknown; intervalStart?: unknown; intervalEnd?: unknown };
+
+/** The slot in Bilka's fields, or null when any of them is missing. */
+export function chosenSlot(raw: ShopChosenSlot | null | undefined): ChosenSlot | null {
+  const date = text(raw?.deliveryDate);
+  const start = text(raw?.intervalStart);
+  const end = text(raw?.intervalEnd);
   return date && start && end ? { date, start, end } : null;
 }
 
@@ -199,13 +203,4 @@ function statusOf(bit: number | undefined): SlotStatus {
 function closedStatus(slot: { availability_bit?: number }): SlotStatus {
   const status = statusOf(slot.availability_bit);
   return status === "available" ? "unavailable" : status;
-}
-
-/** Bilka's notes carry a little HTML (`<strong>`). */
-function plain(html: string | undefined): string | null {
-  const text = (html ?? "")
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return text || null;
 }

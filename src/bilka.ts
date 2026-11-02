@@ -753,11 +753,7 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
         intervalStart: slot.start,
         intervalEnd: slot.end,
       });
-      const set = chosenSlot(
-        text(answer.deliveryDate) ?? undefined,
-        text(answer.intervalStart) ?? undefined,
-        text(answer.intervalEnd) ?? undefined,
-      );
+      const set = chosenSlot(answer);
       if (set?.date !== slot.date || set.start !== slot.start) {
         throw new BilkaError(`${what} failed: Bilka didn't set the slot${saying(answer.msg)}`);
       }
