@@ -119,7 +119,8 @@ test("a mix leaves out a product on offer at the store without the store's mix t
   const { callTool, bilka } = await connectWithMixes();
   // Æbler hand-edited to be on offer at store 1653 (an everyday label, say)
   // while the store still gives it no mix text.
-  const apples = bilka.products.find((p: { objectID: string }) => p.objectID === "18379");
+  const apples = bilka.products.find((p) => p.objectID === "18379");
+  if (apples === undefined) throw new Error("the mix fixture lacks Æbler (18379)");
   apples.isInOffer.push(Number(STORE_ID));
 
   const { json } = await callTool("search_products", { mix_offer_id: "2680" });
