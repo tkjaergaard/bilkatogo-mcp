@@ -17,6 +17,7 @@ It speaks MCP 2026-07-28 and still serves clients that use the older `initialize
 | `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves. | no |
 | `get_cart` | Reads your cart: each line's product, quantity, unit price and line total, the cart total, item count and fees, in DKK. A compact summary by default; `full` adds brand, size, delivery slot and the distance to Bilka's minimum order. | yes |
 | `set_cart_quantity` | Sets one product's cart line to an exact quantity, from 0 to 50 (0 removes the line). Returns the line as Bilka reports it, Bilka's note on the change when there is one, and the cart afterwards. Your MCP client sees it flagged destructive, so it can ask you first. | yes |
+| `set_cart_quantities` | Sets up to 50 cart lines in one call, e.g. a recipe or a repeat of a past order. Each quantity is exact, from 0 to 50 (0 removes the line), and each product may appear once. Items are applied in order; timeouts, rate limits and Bilka server errors are retried up to three times with growing waits, and a failed item doesn't stop the rest. Returns each item's outcome and the cart afterwards (summary, or `full`). Flagged destructive. | yes |
 
 Placing orders and payment stay on the website: the server can't do either. Your name, address, door code and delivery notes are replaced with a marker before anything reaches the model.
 
@@ -38,7 +39,7 @@ To find your store's id, ask your assistant to run `list_stores` ("which Bilka s
 
 ## Log in
 
-Tools that use your account (so far `get_cart` and `set_cart_quantity`) need a BilkaToGo login token. The server reads it only when such a tool runs; search and the store list work without it.
+Tools that use your account (so far `get_cart`, `set_cart_quantity` and `set_cart_quantities`) need a BilkaToGo login token. The server reads it only when such a tool runs; search and the store list work without it.
 
 1. Log in on [bilkatogo.dk](https://www.bilkatogo.dk) in your browser.
 2. Open the developer console and run `localStorage.getItem("auth")`. The value is your login token.

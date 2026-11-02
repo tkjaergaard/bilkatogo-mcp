@@ -207,6 +207,17 @@ test("set_cart_quantity explains an expired login", async () => {
   expect(result.text).toMatch(/BILKATOGO_LOGIN_TOKEN/);
 });
 
+test("set_cart_quantity explains a missing login without blaming the product", async () => {
+  const { callTool, bilka } = await connect();
+
+  const result = await callTool("set_cart_quantity", { product_id: "199126", quantity: 2 });
+
+  expect(result.isError).toBe(true);
+  expect(result.text).toMatch(/No BilkaToGo login is configured/);
+  expect(result.text).not.toMatch(/Bilka rejected/);
+  expect(bilka.calls("shop.*")).toEqual([]);
+});
+
 test("set_cart_quantity keeps the change when reading the cart afterwards fails", async () => {
   const { callTool, bilka } = await connect(withLoginToken);
   bilka.cart = groceryCart();
