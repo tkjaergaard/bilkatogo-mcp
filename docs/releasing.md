@@ -10,13 +10,14 @@ Releases go to npm as `bilkatogo-mcp` through a release PR, using [release-pleas
    - `feat!:`, or a `BREAKING CHANGE:` footer, would give a major release. Before 1.0.0 it gives a minor release instead (`bump-minor-pre-major`).
    - `chore:`, `docs:`, `test:`, `ci:` and `refactor:` don't release anything on their own.
 2. After each merge, the workflow opens or updates a PR titled `chore(main): release x.y.z`. It bumps the version in `package.json` and `package-lock.json` and adds the changes to `CHANGELOG.md`.
-3. Merge that PR when you want to ship. The workflow then tags `vx.y.z`, creates the GitHub release and publishes to npm in two jobs:
+3. Merge that PR when you want to ship. GitHub may first ask you to approve its CI run, because a bot opened it, and `main` requires the `check` job to pass. The workflow then tags `vx.y.z`, creates the GitHub release and stages the package on npm in two jobs:
    - **build** installs the dependencies, runs `npm run check` and `npm pack` (whose `prepack` builds `dist/`). It has no right to publish.
-   - **publish** gets only the packed tarball and runs `npm publish` on it. It installs nothing, so no dependency's install script runs where the publish token exists.
+   - **publish** gets only the packed tarball and runs `npm stage publish` on it. It installs nothing, so no dependency's install script runs where the publish token exists.
+4. Approve the staged release with your passkey: on npmjs.com under **Staged Packages**, or with `npm stage list` and `npm stage approve <id>`. Only then does it reach npm. The trusted publisher is only allowed to stage, so a compromised workflow can't publish on its own.
 
 Users on `npx -y bilkatogo-mcp@latest` get the release the next time their MCP client starts the server.
 
-The release PR is opened by the workflow's own token, so GitHub doesn't run CI on it. The publish job runs `npm run check` before it publishes instead.
+The build job runs `npm run check` again on the release commit before anything is staged.
 
 ## One-time setup
 
@@ -34,8 +35,9 @@ npm's trusted publishing lets the workflow publish without an npm token. It can 
    ```sh
    gh release create v0.1.0 --target "$(git rev-parse HEAD)" --title v0.1.0 --notes "First release on npm."
    ```
-5. On [npmjs.com](https://www.npmjs.com/package/bilkatogo-mcp), open the package's **Settings → Trusted publishing**, choose GitHub Actions and enter owner `tkjaergaard`, repository `bilkatogo-mcp` and workflow `release.yml`. Then, under **Publishing access**, choose **Require two-factor authentication and disallow tokens**.
+5. On [npmjs.com](https://www.npmjs.com/package/bilkatogo-mcp), open the package's **Settings → Trusted publishing**, choose GitHub Actions and enter owner `tkjaergaard`, repository `bilkatogo-mcp` and workflow `release.yml`, with no environment. Under **Allowed actions**, leave both "Allow npm publish" and "Allow npm dist-tag" unticked, so the workflow can only stage. Then, under **Publishing access**, choose **Require two-factor authentication and disallow bypass 2fa tokens**. npm validates the connection on the first staged release; it has to happen within two days of setting it up.
 6. Run the Release workflow once by hand (**Actions → Release → Run workflow**), so the next release PR counts from v0.1.0.
+7. Protect `main` with a ruleset (**Settings → Rules → Rulesets**): require a pull request and the `check` status check, and block force pushes and deletion. Then nothing, not even a workflow, reaches `main` without a PR.
 
 ## Notes
 
