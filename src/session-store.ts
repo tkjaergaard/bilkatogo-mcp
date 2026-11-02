@@ -2,10 +2,10 @@
 // doesn't need a fresh password login. By default a JSON file in the user
 // config directory, readable only by its owner.
 
-import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
-import { randomBytes } from "node:crypto";
-import { dirname, join } from "node:path";
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
 import { configDir, type Env } from "./credentials.ts";
+import { readPrivateJson, writePrivateJson } from "./private-file.ts";
 import { errorCode } from "./values.ts";
 
 export type SessionStore = {
@@ -30,40 +30,13 @@ export function defaultSessionFile(env: Env): string {
 export function fileSessionStore(file: string): SessionStore {
   return {
     async load() {
-      let text: string;
-      try {
-        text = await readFile(file, "utf8");
-      } catch (error) {
-        // No file yet (or no directory where it would be): nothing remembered.
-        if (errorCode(error) === "ENOENT" || errorCode(error) === "ENOTDIR") return undefined;
-        throw new Error(`could not read ${file} (${errorCode(error) ?? "unknown error"})`);
-      }
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        throw new Error(`could not read ${file} (not JSON)`);
-      }
-      const token = (parsed as { loginToken?: unknown } | null)?.loginToken;
+      const parsed = await readPrivateJson(file);
+      const token = (parsed as { loginToken?: unknown } | null | undefined)?.loginToken;
       return typeof token === "string" && token.trim() ? token.trim() : undefined;
     },
 
     async save(loginToken) {
-      const temp = `${file}.${randomBytes(6).toString("hex")}.tmp`;
-      try {
-        await mkdir(dirname(file), { recursive: true, mode: 0o700 });
-        const handle = await open(temp, "wx", 0o600);
-        try {
-          await handle.writeFile(`${JSON.stringify({ loginToken })}\n`);
-          await handle.sync();
-        } finally {
-          await handle.close();
-        }
-        await rename(temp, file);
-      } catch (error) {
-        await rm(temp, { force: true }).catch(() => {});
-        throw new Error(`could not write ${file} (${errorCode(error) ?? "unknown error"})`);
-      }
+      await writePrivateJson(file, { loginToken });
     },
 
     async clear() {

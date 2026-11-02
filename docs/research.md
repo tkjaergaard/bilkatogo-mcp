@@ -118,6 +118,8 @@ Compared with stigvoss/bilkatogo-mcp, and with nemlig-mcp as the model:
 
 **Decision (2026-11-02): D, in TypeScript**, as a private PoC. The client is written from scratch using the endpoints in §3. nickknissen's library (MIT) and stigvoss's server are references for how the endpoints behave. They aren't dependencies. Since the project is private, stigvoss's missing license isn't a blocker for reading their code.
 
+**Tool list (2026-11-02):** the eight tools pinned in #1 grew to nine at the user's request. `select_store` picks the store by id or by store or pickup-point name (gap 5, "picking a store by name instead of by id") and saves it in `settings.json`, a local setting of this server that never touches the Bilka account.
+
 ## 6. Risks and open questions
 
 - **Terms of service.** This is a private API, as with nemlig, so it can change at any time. We haven't read bilkatogo.dk's terms on automated use yet. Keep traffic at what one person would generate.

@@ -21,7 +21,7 @@ test("list_stores lists each Bilka store once, with the pickup points that share
 });
 
 test("list_stores reads the public delivery-address list without logging in", async () => {
-  // No store and no credentials: list_stores is how you find the store id.
+  // No store and no credentials: list_stores is how you find a store to select.
   const { callTool, bilka } = await connect({ storeId: undefined });
 
   const result = await callTool("list_stores");
@@ -50,13 +50,13 @@ test("list_stores reports a Bilka failure as a tool error", async () => {
   expect(result.text).toMatch(/store list failed with HTTP 503/i);
 });
 
-test("list_stores tells the model how to use a store id", async () => {
+test("list_stores tells the model to pick a store with select_store", async () => {
   const { client } = await connect();
 
   const { tools } = await client.listTools();
 
   const tool = tools.find((t) => t.name === "list_stores");
-  expect(tool?.description).toContain("BILKATOGO_STORE_ID");
+  expect(tool?.description).toContain("select_store");
   expect(tool?.inputSchema.properties ?? {}).toEqual({});
 });
 

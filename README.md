@@ -14,7 +14,8 @@ It speaks MCP 2026-07-28 and still serves clients that use the older `initialize
 |---|---|---|
 | `search_products` | Searches the catalogue at your store. Prices in DKK, with regular price, saving and offer text for discounted products. Only in-stock products by default; can be limited to offers. | no |
 | `get_product_details` | Everything the catalogue holds about one product: size, prices, unit price, category, labels, and ingredients, allergens and nutrition where Bilka publishes them. | no |
-| `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves. | no |
+| `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves, plus the store the server uses now. | no |
+| `select_store` | Chooses the store to shop at, by store id or part of a store or pickup-point name ("odense"). When several stores match, it saves nothing and lists them so the assistant can ask you which one. Saved in `settings.json`; it changes only this server's setting, never your Bilka account. | no |
 | `get_cart` | Reads your cart: each line's product, quantity, unit price and line total, the cart total, item count and fees, in DKK. A compact summary by default; `full` adds brand, size, delivery slot and the distance to Bilka's minimum order. | yes |
 | `set_cart_quantity` | Sets one product's cart line to an exact quantity, from 0 to 50 (0 removes the line). Returns the line as Bilka reports it, Bilka's note on the change when there is one, and the cart afterwards. Your MCP client sees it flagged destructive, so it can ask you first. | yes |
 | `set_cart_quantities` | Sets up to 50 cart lines in one call, e.g. a recipe or a repeat of a past order. Each quantity is exact, from 0 to 50 (0 removes the line), and each product may appear once. Items are applied in order; timeouts, rate limits (HTTP 429) and Bilka server errors (HTTP 5xx) are retried up to three times with growing waits, and a failed item doesn't stop the rest, with two exceptions: a failed login, and an item that still gets HTTP 429 after its retries, stop the batch so the rest don't fail too or push further into Bilka's rate limit. The items after it are reported as failed with 0 attempts and a "not attempted" reason. Other network failures (Bilka unreachable) aren't retried. Returns each item's outcome and the cart afterwards (summary, or `full`). Flagged destructive. | yes |
@@ -35,9 +36,13 @@ npm install
 
 ## Choose your store
 
-Search only shows what one Bilka store carries, so the server needs that store's id, for example `1654` for Bilka Odense. Set it in `BILKATOGO_STORE_ID`, or as `"storeId"` in `~/.config/bilka-mcp/login.json` (see [Credential options](#credential-options)). The environment wins when both are set. The server reads it only when a tool needs the store, and reads the file at most once per run, so restart it after a change.
+Search only shows what one Bilka store carries, so the server needs to know your store. Ask your assistant, for example "use Bilka Odense" or "which Bilka stores are there?". It calls `list_stores` to see the stores and `select_store` to choose one, by its id (such as `1654`) or by part of a store or pickup-point name. A pickup-point name chooses the store that serves it. When a name matches several stores, nothing is chosen and the assistant asks you which one you mean. Neither tool needs a login, and a choice applies to the next search straight away.
 
-To find your store's id, ask your assistant to run `list_stores` ("which Bilka stores are there?"). It works before a store is configured and needs no login. Without a store id, `search_products` answers with an error that says how to set one.
+The choice is saved to `~/.config/bilka-mcp/settings.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"storeId": "1654"}`, written atomically with mode 600 like the session file, so it survives a restart. If the file can't be written, the server writes a warning to stderr and the choice lasts until the server stops. It's a setting of this server only: nothing changes on your Bilka account.
+
+Optionally, set a default store without asking the assistant: `BILKATOGO_STORE_ID`, or `"storeId"` in `~/.config/bilka-mcp/login.json` (see [Credential options](#credential-options)). The environment wins over the login file, and a store chosen with `select_store` wins over both, because it's your most recent choice. The defaults are read only when a tool needs the store, and the file at most once per run, so restart the server after changing them. Without any store, `search_products` answers with an error that tells the assistant to choose one.
+
+The original spec (issue #1) pinned eight tools. `select_store` was added on request, so you can pick a store by name in conversation instead of looking up and configuring its id.
 
 ## Log in
 
@@ -81,14 +86,14 @@ A login token that works is saved to `~/.config/bilka-mcp/session.json` (under `
 From the repo directory:
 
 ```sh
-claude mcp add bilka -e BILKATOGO_STORE_ID=1654 -- node "$PWD/src/main.ts"
+claude mcp add bilka -- node "$PWD/src/main.ts"
 ```
 
-Then ask Claude something like "find havremælk". Add `-s user` to make the server available in every project.
+Then ask Claude something like "use Bilka Odense and find havremælk". Add `-s user` to make the server available in every project.
 
-The store id isn't a secret, so it's fine in the MCP config. Your password and login token are: keep them in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
+To set a default store in the MCP config instead, add `-e BILKATOGO_STORE_ID=1654`. The store id isn't a secret, so it's fine there. Your password and login token are: keep them in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
 
-Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.ts` over stdio with `BILKATOGO_STORE_ID` set (or `storeId` in the login file).
+Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.ts` over stdio.
 
 ## Development
 

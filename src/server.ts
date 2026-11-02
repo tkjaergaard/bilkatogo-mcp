@@ -3,11 +3,18 @@
 import { McpServer, SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import { createSession } from "./auth.ts";
-import { createBilkaClient, ORDER_ID_PATTERN, PRODUCT_ID_PATTERN, type Session } from "./bilka.ts";
+import {
+  createBilkaClient,
+  ORDER_ID_PATTERN,
+  PRODUCT_ID_PATTERN,
+  type Session,
+  type Store,
+} from "./bilka.ts";
 import { setCartQuantities, setCartQuantity, type Sleep } from "./cart-changes.ts";
 import { summariseCart } from "./cart.ts";
 import { type CredentialSources, readStoreId } from "./credentials.ts";
 import type { SessionStore } from "./session-store.ts";
+import type { SettingsStore } from "./settings-store.ts";
 
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -35,11 +42,18 @@ export type ServerConfig = {
   /** Waits between retries. Tests inject an instant one. */
   sleep: Sleep;
   /**
-   * The Bilka store to search, e.g. "1654" (Bilka Odense). When undefined, it
-   * is read from `credentials` when a tool first needs it: `BILKATOGO_STORE_ID`,
-   * else `storeId` in the login file.
+   * The Bilka store to search, e.g. "1654" (Bilka Odense). It wins over
+   * everything else. When undefined, the store is the one `select_store`
+   * saved in `settingsStore`, else read from `credentials` when a tool first
+   * needs it: `BILKATOGO_STORE_ID`, else `storeId` in the login file.
    */
   storeId?: string | undefined;
+  /**
+   * Keeps the store `select_store` picks, across restarts. main.ts uses
+   * `fileSettingsStore()`; without one, the selection lasts until the server
+   * stops.
+   */
+  settingsStore?: SettingsStore | undefined;
   /**
    * Where the BilkaToGo login (and the store id, see `storeId`) come from,
    * read only when a tool needs them. Without it, tools that need the account
@@ -59,10 +73,19 @@ export type ServerConfig = {
 };
 
 // The SDK may call the server factory more than once per process (e.g. a
-// legacy fallback after a modern probe). The login session and the store id
+// legacy fallback after a modern probe). The login session and the store
 // live per config object instead, so every server built from one config
-// shares one JWT and reads the login file for the store at most once.
-type ConfigState = { session: Session; storeId: () => Promise<string | undefined> };
+// shares one JWT and one store selection, and reads each file at most once.
+type ConfigState = {
+  session: Session;
+  warn: (line: string) => void;
+  /** The store id tools use, unvalidated: explicit, selected, env, then login file. */
+  storeId: () => Promise<string | undefined>;
+  /** Makes `storeId` the selection from now on, and saves it if there's a settings store. */
+  select: (storeId: string) => Promise<{ saved: true; saved_to: string } | SaveFailure>;
+};
+
+type SaveFailure = { saved: false; saved_to: null; note: string };
 
 const states = new WeakMap<ServerConfig, ConfigState>();
 
@@ -77,20 +100,63 @@ function stateFor(config: ServerConfig): ConfigState {
       now: config.now ?? Date.now,
       warn,
     });
-    let storeId: Promise<string | undefined> | undefined;
+    const settings = config.settingsStore;
+    let selected: Promise<string | undefined> | undefined;
+    let fallback: Promise<string | undefined> | undefined;
     state = {
       session,
-      storeId: () => {
-        storeId ??=
-          config.storeId !== undefined || config.credentials === undefined
-            ? Promise.resolve(config.storeId)
+      warn,
+      storeId: async () => {
+        if (config.storeId !== undefined) return config.storeId;
+        selected ??= loadSelection(settings, warn);
+        const storeId = await selected;
+        if (storeId !== undefined) return storeId;
+        fallback ??=
+          config.credentials === undefined
+            ? Promise.resolve(undefined)
             : readStoreId(config.credentials, warn);
-        return storeId;
+        return fallback;
+      },
+      select: async (storeId) => {
+        selected = Promise.resolve(storeId);
+        const lasts = "The selection applies until the server restarts.";
+        if (settings === undefined) {
+          return { saved: false, saved_to: null, note: `No settings file is configured. ${lasts}` };
+        }
+        try {
+          await settings.save({ storeId });
+          return { saved: true, saved_to: settings.location };
+        } catch (error) {
+          warn(`warning: ${messageOf(error)}; the store selection wasn't saved`);
+          return {
+            saved: false,
+            saved_to: null,
+            note: `Saving to ${settings.location} failed. ${lasts}`,
+          };
+        }
       },
     };
     states.set(config, state);
   }
   return state;
+}
+
+/** The saved selection, or undefined when none is saved or the store can't be read. */
+async function loadSelection(
+  settings: SettingsStore | undefined,
+  warn: (line: string) => void,
+): Promise<string | undefined> {
+  if (settings === undefined) return undefined;
+  try {
+    return (await settings.load()).storeId;
+  } catch (error) {
+    warn(`warning: ${messageOf(error)}; ignoring the saved store selection`);
+    return undefined;
+  }
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export function createServer(config: ServerConfig): McpServer {
@@ -194,14 +260,72 @@ export function createServer(config: ServerConfig): McpServer {
       description: [
         "List the Bilka stores that BilkaToGo shops from, with their store ids.",
         "Pickup points are listed under the store that serves them.",
-        "To shop at a store, set its `store_id` as BILKATOGO_STORE_ID in the server's configuration.",
+        "To shop at a store, call select_store with its `store_id` or name.",
+        "`selected_store_id` is the store this server uses now, or null when none is selected.",
         "Needs no login.",
         untrustedText("Store and pickup-point names"),
       ].join(" "),
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async () => jsonResult({ stores: await bilka.listStores() }),
+    async () => {
+      const stores = await bilka.listStores();
+      return jsonResult({ selected_store_id: validStoreId(await state.storeId()), stores });
+    },
+  );
+
+  server.registerTool(
+    "select_store",
+    {
+      title: "Select the Bilka store",
+      description: [
+        "Choose the Bilka store to shop at, for search_products and get_product_details.",
+        'Give a store id from list_stores (e.g. "1654") or part of a store or pickup-point',
+        'name (e.g. "odense"; not case-sensitive). A pickup point selects the store that serves it.',
+        "When exactly one store matches, it's selected and saved, and applies to the next tool",
+        "calls. When several match, nothing is saved and the candidates are returned: ask the",
+        "user which one they mean, then call again with its store id.",
+        "This only changes this server's local setting; it never changes the BilkaToGo account.",
+        "Needs no login.",
+        untrustedText("Store and pickup-point names"),
+      ].join(" "),
+      inputSchema: z.object({
+        store: z
+          .string()
+          .trim()
+          .min(1)
+          .max(100)
+          .describe('A store id such as "1654", or part of a store or pickup-point name.'),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ store }) => {
+      const stores = await bilka.listStores();
+      const matches = matchStores(stores, store);
+      const [only] = matches;
+      if (only === undefined) {
+        throw new Error(
+          `No Bilka store matches ${JSON.stringify(store)}. ` +
+            "Use list_stores to see the stores, their ids and pickup points.",
+        );
+      }
+      if (matches.length > 1) {
+        return jsonResult({
+          saved: false,
+          note:
+            `${matches.length} stores match ${JSON.stringify(store)}; nothing was selected. ` +
+            "Ask the user which one they mean, then call select_store with its store id.",
+          candidates: matches,
+        });
+      }
+      const outcome = await state.select(only.store_id);
+      return jsonResult({ store_id: only.store_id, name: only.name, ...outcome });
+    },
   );
 
   server.registerTool(
@@ -382,6 +506,20 @@ function untrustedText(what: string): string {
   );
 }
 
+/**
+ * The stores `query` names: the one with that id when it's all digits, else
+ * every store whose name or one of whose pickup points contains it, ignoring case.
+ */
+function matchStores(stores: Store[], query: string): Store[] {
+  if (/^\d+$/.test(query)) return stores.filter((store) => store.store_id === query);
+  const needle = query.toLocaleLowerCase("da");
+  return stores.filter((store) =>
+    [store.name, ...store.pickup_points].some((name) =>
+      name.toLocaleLowerCase("da").includes(needle),
+    ),
+  );
+}
+
 // A product id, as search results, the cart and orders give it.
 const productIdSchema = z
   .string()
@@ -392,15 +530,16 @@ const productIdSchema = z
 function requireStoreId(storeId: string | undefined): string {
   if (storeId === undefined || storeId.trim() === "") {
     throw new Error(
-      "No Bilka store is configured. Set the BILKATOGO_STORE_ID environment variable, or " +
-        '"storeId" in ~/.config/bilka-mcp/login.json, to the id of the store you shop at, then ' +
-        "restart the server. The list_stores tool lists the stores and their ids.",
+      "No Bilka store is selected. Call list_stores to see the stores, then select_store with " +
+        "the store the user shops at (its store id or part of its name). Alternatively, the " +
+        "BILKATOGO_STORE_ID environment variable sets a default store.",
     );
   }
-  if (!/^\d+$/.test(storeId.trim())) {
+  if (validStoreId(storeId) === null) {
     throw new Error(
-      "The store id (BILKATOGO_STORE_ID or storeId in login.json) must be a number such as " +
-        `1654, not ${JSON.stringify(storeId)}. The list_stores tool lists the stores and their ids.`,
+      "The configured store id (select_store's setting, BILKATOGO_STORE_ID or storeId in " +
+        `login.json) must be a number such as 1654, not ${JSON.stringify(storeId)}. ` +
+        "Call list_stores, then select_store to choose a store.",
     );
   }
   return storeId.trim();
@@ -409,6 +548,12 @@ function requireStoreId(storeId: string | undefined): string {
 /** The configured store id, or undefined when none is set. */
 function optionalStoreId(storeId: string | undefined): string | undefined {
   return storeId === undefined || storeId.trim() === "" ? undefined : requireStoreId(storeId);
+}
+
+/** The store id, trimmed, or null when it's missing or not a number. */
+function validStoreId(storeId: string | undefined): string | null {
+  const trimmed = storeId?.trim() ?? "";
+  return /^\d+$/.test(trimmed) ? trimmed : null;
 }
 
 function jsonResult(value: unknown) {

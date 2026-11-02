@@ -176,6 +176,7 @@ test("without a configured store, search returns a clear error pointing at the s
   expect(result.isError).toBe(true);
   expect(result.text).toContain("BILKATOGO_STORE_ID");
   expect(result.text).toContain("list_stores");
+  expect(result.text).toContain("select_store");
   expect(bilka.requests).toEqual([]);
 });
 
@@ -209,12 +210,12 @@ test("BILKATOGO_STORE_ID wins over the login file's store id", async () => {
 test("the login file is read for the store id only when a tool needs the store", async () => {
   // Readable by others, so reading it leaves a warning behind.
   const file = await loginFile({ storeId: "1654" }, 0o644);
-  const { callTool, warnings } = await connect({
+  const { client, callTool, warnings } = await connect({
     storeId: undefined,
     credentials: { env: {}, loginFile: file },
   });
 
-  expect((await callTool("list_stores")).isError).toBe(false);
+  await client.listTools();
   expect(warnings).toEqual([]);
 
   expect((await callTool("search_products", { query: "skyr" })).isError).toBe(false);
