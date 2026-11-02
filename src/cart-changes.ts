@@ -22,6 +22,12 @@ export type LineRequest = { product_id: string; quantity: number };
 const RETRY_BACKOFF_MS = [500, 1_000, 2_000];
 
 /**
+ * How long a batch waits between items, in ms, so a long batch reaches Bilka
+ * at about the pace of one person clicking through the shop.
+ */
+const ITEM_GAP_MS = 250;
+
+/**
  * The cart after a change: the summary, or the full cart when asked. The
  * change has already happened, so a failed read is reported next to it rather
  * than thrown.
@@ -68,6 +74,7 @@ export async function setCartQuantity(bilka: BilkaClient, { product_id, quantity
  * failures. A failed item doesn't stop the rest, except when continuing would
  * only fail too (the login failed) or would push into Bilka's rate limit (an
  * item gave up on HTTP 429). The rest are then reported as not attempted.
+ * Items sent to Bilka are spaced ITEM_GAP_MS apart.
  */
 export async function setCartQuantities(
   bilka: BilkaClient,
@@ -88,6 +95,7 @@ export async function setCartQuantities(
       });
       continue;
     }
+    if (outcomes.length > 0) await sleep(ITEM_GAP_MS);
     const applied = await applyItem(bilka, sleep, item);
     outcomes.push(applied.outcome);
     stopReason = applied.stopReason;

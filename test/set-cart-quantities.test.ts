@@ -7,7 +7,7 @@ import { connect } from "./support/harness.ts";
 const withLoginToken = { credentials: { env: { BILKATOGO_LOGIN_TOKEN: LOGIN_TOKEN } } };
 
 test("set_cart_quantities applies the items in order and returns each outcome and the cart", async () => {
-  const { callTool, bilka, sleeps } = await connect(withLoginToken);
+  const { callTool, bilka } = await connect(withLoginToken);
   bilka.cart = groceryCart();
 
   const result = await callTool("set_cart_quantities", {
@@ -28,7 +28,6 @@ test("set_cart_quantities applies the items in order and returns each outcome an
     ["199126", "0"],
     ["142207", "3"],
   ]);
-  expect(sleeps).toEqual([]);
   // Worked by hand: 2 × 30,95 = 61,90 skyr; 3 × 15,11 = 45,33 tuna; 78,00 in fees.
   expect(result.json).toEqual({
     items: [
@@ -95,6 +94,23 @@ test("set_cart_quantities applies the items in order and returns each outcome an
       delivery: CAPTURED_DELIVERY,
     },
   });
+});
+
+test("set_cart_quantities waits 250 ms between the items it sends, at the pace of one person", async () => {
+  const { callTool, bilka, sleeps } = await connect(withLoginToken);
+  bilka.cart = groceryCart();
+
+  await callTool("set_cart_quantities", {
+    items: [
+      { product_id: "19753", quantity: 2 },
+      { product_id: "199126", quantity: 0 },
+      { product_id: "142207", quantity: 3 },
+    ],
+  });
+
+  expect(bilka.calls("shop.ChangeLineCount")).toHaveLength(3);
+  // One wait between each pair of items: none before the first or after the last.
+  expect(sleeps).toEqual([250, 250]);
 });
 
 test.each([

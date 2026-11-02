@@ -270,6 +270,49 @@ test("a page below 1 is rejected before anything is sent", async () => {
   expect(bilka.requests).toEqual([]);
 });
 
+test("paging stops at page 20: a later page is rejected before anything is sent", async () => {
+  const { callTool, bilka } = await connect();
+
+  const last = await callTool("search_products", { query: "skyr", page: 20 });
+  const beyond = await callTool("search_products", { query: "skyr", page: 21 });
+
+  expect(last.isError).toBe(false);
+  expect(beyond.isError).toBe(true);
+  expect(beyond.text).toMatch(/20/);
+  expect(algoliaQueries(bilka)).toMatchObject([{ page: 19 }]);
+});
+
+test("when there are more pages than the cap, the answer's notes say to narrow the search", async () => {
+  const { callTool } = await connect({ limits: { maxSearchPage: 3 } });
+
+  // The fixture index holds six products: one per page makes six pages, three of them served.
+  const capped = await callTool("search_products", {
+    query: "skyr",
+    only_in_stock: false,
+    limit: 1,
+  });
+  const fits = await callTool("search_products", {
+    query: "skyr",
+    only_in_stock: false,
+    limit: 2,
+  });
+
+  expect(capped.json.total_pages).toBe(6);
+  expect(capped.json.notes).toEqual([expect.stringMatching(/only pages 1 to 3/i)]);
+  expect(fits.json.total_pages).toBe(3);
+  expect(fits.json.notes).toBeUndefined();
+});
+
+test("the tool description says paging is capped and isn't for exporting the catalogue", async () => {
+  const { client } = await connect();
+
+  const { tools } = await client.listTools();
+
+  const search = tools.find((tool) => tool.name === "search_products");
+  expect(search?.description).toMatch(/page 20/);
+  expect(search?.description).toMatch(/not for (copying|exporting) the catalogue/);
+});
+
 test("search makes exactly one Algolia request and no Gigya or shop calls", async () => {
   const { callTool, bilka } = await connect();
 
