@@ -1,0 +1,506 @@
+{
+  "order": {
+    "stat": {
+      "amount": 22,
+      "diff": 19,
+      "price": 60145,
+      "price_vat": 12029,
+      "serv_amount": 0,
+      "serv_diff": 0,
+      "serv_price": 0,
+      "prod_amount": 20,
+      "prod_amount_no_deposits": 20,
+      "prod_diff": 17,
+      "prod_price": 52345,
+      "ageCode": 0,
+      "verified_ageCode": 999,
+      "promo": 4210,
+      "oos": false,
+      "has_replacements": false,
+      "blockedByHoliday": false,
+      "deposit": 0,
+      "deposit_amount": 0,
+      "deposit_diff": 0,
+      "delivery_price": 3900,
+      "is_member": 0,
+      "membership_offer_discount": 0,
+      "personalized_offer_discount": 0,
+      "packing": 3900,
+      "packaging_price": 0,
+      "price_no_promo": 56555,
+      "subtotal_no_promo": 60455,
+      "uncollected_fee": null,
+      "global_discounts": [],
+      "vouchers": [],
+      "minimum_left": 0,
+      "minimum_left_text": "",
+      "delivery_comment": {
+        "id": 1,
+        "comment": "",
+        "delivery_text": "FAKE-NOTE: levering ved hoveddør",
+        "access_required": false,
+        "doorcode": "",
+        "access_choice": "FAKE-ACCESS: ring på",
+        "selectable": true
+      },
+      "specifications": [
+        {
+          "text": "Pakkeservice",
+          "value": 3900
+        },
+        {
+          "text": "Emballage",
+          "value": 0
+        },
+        {
+          "text": "Leveringsgebyr",
+          "value": 3900
+        }
+      ]
+    },
+    "orderId": "900000000001",
+    "deliveryDate": "2026-01-12",
+    "deliveryDay": "Man",
+    "deliveryInterval": {
+      "start": "00:00:00",
+      "end": "06:00:00"
+    },
+    "deliveryAddress": {
+      "recipient_name": "Test Testesen",
+      "location": "Testvej 1",
+      "zipCode": "0000",
+      "city": "Testby",
+      "floor": null,
+      "door": null,
+      "address": "Testvej 1, 1. tv",
+      "youtube_id": "",
+      "lat": "55.0000000",
+      "lng": "10.0000000",
+      "order_pickup_code": "FAKE-PICKUP-9876",
+      "facility": 8,
+      "home_delivery": true,
+      "deliveryPointId": 1,
+      "deliveryPointText": "FAKE-NOTE: ved carporten",
+      "deliveryComment": "FAKE-NOTE: stil ved døren",
+      "doorcode": ""
+    },
+    "deliveryMessage": "Man. 12/01. Senest kl. 06:00",
+    "ordered": {
+      "channel": "Web",
+      "date": "2026-01-10",
+      "time": "10:00:00"
+    },
+    "price": 60145,
+    "status": "Faktureret",
+    "routeplanned": true,
+    "totalProductAmount": 20,
+    "lines": [
+      {
+        "headline": "Services",
+        "type": "",
+        "lines": [
+          {
+            "orderlines": [
+              {
+                "quantity": 1,
+                "amount": 3900,
+                "net_unitprice": 3900,
+                "unitprice": 3900,
+                "sort": 100000001,
+                "product": {
+                  "objectID": 119085,
+                  "erpProductID": "906540-EA",
+                  "name": "Leveringsgebyr",
+                  "link": "",
+                  "article": "906540",
+                  "price": 3900,
+                  "brand": "",
+                  "subBrand": "",
+                  "countryOfOrigin": [],
+                  "units": 0,
+                  "unitsOfMeasure": "",
+                  "unitsOfMeasurePrice": 0,
+                  "unitsOfMeasureOfferPrice": 0,
+                  "unitsOfMeasurePriceUnit": "",
+                  "properties": [],
+                  "attributes": [],
+                  "productType": "",
+                  "multipromo": 0,
+                  "imageGUIDs": {},
+                  "categories": {
+                    "lvl0": ["Services"],
+                    "lvl1": ["Services > ThomBerg Levering"],
+                    "lvl2": []
+                  },
+                  "blockedByHoliday": false,
+                  "msg": "",
+                  "cpOffer": false,
+                  "cpOfferPrice": null,
+                  "cpOfferAmount": 0,
+                  "cpOfferId": 0,
+                  "cpOfferMsg": "",
+                  "offerMax": 0,
+                  "offerMaxDescription": "",
+                  "ageCode": 0
+                },
+                "unavailable_reason": "",
+                "discounts": [],
+                "deposits": [],
+                "replacement": null,
+                "returns": [],
+                "pickedCountryOfOrigin": "",
+                "comment": "",
+                "strikethrough": null,
+                "tagline": null,
+                "children": []
+              }
+            ],
+            "discounts": []
+          },
+          {
+            "orderlines": [
+              {
+                "quantity": 1,
+                "amount": 3900,
+                "net_unitprice": 3900,
+                "unitprice": 3900,
+                "sort": 100000002,
+                "product": {
+                  "objectID": 81474,
+                  "erpProductID": "87418611-EA",
+                  "name": "Pakkeservice",
+                  "link": "",
+                  "article": "87418611",
+                  "price": 3900,
+                  "brand": "",
+                  "subBrand": "",
+                  "countryOfOrigin": [],
+                  "units": 0,
+                  "unitsOfMeasure": "",
+                  "unitsOfMeasurePrice": 0,
+                  "unitsOfMeasureOfferPrice": 0,
+                  "unitsOfMeasurePriceUnit": "",
+                  "properties": [],
+                  "attributes": [],
+                  "productType": "",
+                  "multipromo": 0,
+                  "imageGUIDs": {},
+                  "categories": {
+                    "lvl0": ["Services"],
+                    "lvl1": ["Services > ThomBerg Levering"],
+                    "lvl2": []
+                  },
+                  "blockedByHoliday": false,
+                  "msg": "",
+                  "cpOffer": false,
+                  "cpOfferPrice": null,
+                  "cpOfferAmount": 0,
+                  "cpOfferId": 0,
+                  "cpOfferMsg": "",
+                  "offerMax": 0,
+                  "offerMaxDescription": "",
+                  "ageCode": 0
+                },
+                "unavailable_reason": "",
+                "discounts": [],
+                "deposits": [],
+                "replacement": null,
+                "returns": [],
+                "pickedCountryOfOrigin": "",
+                "comment": "",
+                "strikethrough": null,
+                "tagline": null,
+                "children": []
+              }
+            ],
+            "discounts": []
+          }
+        ]
+      },
+      {
+        "headline": "Frost",
+        "type": "",
+        "lines": [
+          {
+            "orderlines": [
+              {
+                "quantity": 1,
+                "amount": 2349,
+                "net_unitprice": 2349,
+                "unitprice": 2349,
+                "sort": 100000003,
+                "product": {
+                  "objectID": 900101,
+                  "erpProductID": "900101-EA",
+                  "name": "Rundstykker",
+                  "link": "",
+                  "article": "900101",
+                  "price": 2345,
+                  "brand": "Salling",
+                  "subBrand": "",
+                  "countryOfOrigin": [],
+                  "units": 600,
+                  "unitsOfMeasure": "g",
+                  "unitsOfMeasurePrice": 3908,
+                  "unitsOfMeasureOfferPrice": 0,
+                  "unitsOfMeasurePriceUnit": "Kg.",
+                  "properties": [],
+                  "attributes": [
+                    {
+                      "attributeID": "euStarLabel",
+                      "attributeName": "Europæisk ejerskab",
+                      "attributeIconID": "euStarLabel",
+                      "attributeNameAndIcon": "Europæisk ejerskab > euStarLabel"
+                    },
+                    {
+                      "attributeID": "frozenLabel",
+                      "attributeName": "Frost",
+                      "attributeIconID": "frost",
+                      "attributeNameAndIcon": "Frost > frost"
+                    }
+                  ],
+                  "productType": "Rundstykker",
+                  "multipromo": 0,
+                  "imageGUIDs": {
+                    "1": "00000000000000000000000000900101",
+                    "7": "00000000000000000000000000900101",
+                    "11": "00000000000000000000000000900101"
+                  },
+                  "categories": {
+                    "lvl0": ["Frost"],
+                    "lvl1": ["Frost > Brød og kager"],
+                    "lvl2": ["Frost > Brød og kager > Brød"]
+                  },
+                  "blockedByHoliday": false,
+                  "msg": "",
+                  "cpOffer": false,
+                  "cpOfferPrice": null,
+                  "cpOfferAmount": 0,
+                  "cpOfferId": 0,
+                  "cpOfferMsg": "",
+                  "offerMax": 0,
+                  "offerMaxDescription": "",
+                  "ageCode": 0
+                },
+                "unavailable_reason": "",
+                "discounts": [],
+                "deposits": [],
+                "replacement": null,
+                "returns": [],
+                "pickedCountryOfOrigin": "",
+                "comment": "",
+                "strikethrough": null,
+                "tagline": null,
+                "children": []
+              }
+            ],
+            "discounts": []
+          }
+        ]
+      },
+      {
+        "headline": "Kolonial",
+        "type": "",
+        "lines": [
+          {
+            "orderlines": [
+              {
+                "quantity": 1,
+                "amount": 1287,
+                "net_unitprice": 1287,
+                "unitprice": 1287,
+                "sort": 100000004,
+                "product": {
+                  "objectID": 900102,
+                  "erpProductID": "900102-EA",
+                  "name": "Makrel i tomat",
+                  "link": "",
+                  "article": "900102",
+                  "price": 1287,
+                  "brand": "Salling",
+                  "subBrand": "",
+                  "countryOfOrigin": [],
+                  "units": 125,
+                  "unitsOfMeasure": "g",
+                  "unitsOfMeasurePrice": 10296,
+                  "unitsOfMeasureOfferPrice": 0,
+                  "unitsOfMeasurePriceUnit": "Kg.",
+                  "properties": ["Nøglehul"],
+                  "attributes": [
+                    {
+                      "attributeID": "euStarLabel",
+                      "attributeName": "Europæisk ejerskab",
+                      "attributeIconID": "euStarLabel",
+                      "attributeNameAndIcon": "Europæisk ejerskab > euStarLabel"
+                    },
+                    {
+                      "attributeID": "KeyholeLabel",
+                      "attributeName": "Nøglehulsmærket",
+                      "attributeIconID": "noeglehulsmaerket",
+                      "attributeNameAndIcon": "Nøglehulsmærket > noeglehulsmaerket"
+                    },
+                    {
+                      "attributeID": "mscLabel",
+                      "attributeName": "Bæredygtig vildtfangede fisk og skaldyr - MSC mærket",
+                      "attributeIconID": "msc",
+                      "attributeNameAndIcon": "Bæredygtig vildtfangede fisk og skaldyr - MSC mærket > msc"
+                    }
+                  ],
+                  "productType": "Makrel i tomat",
+                  "multipromo": 0,
+                  "imageGUIDs": {
+                    "1": "00000000000000000000000000900102",
+                    "7": "00000000000000000000000000900102",
+                    "11": "00000000000000000000000000900102"
+                  },
+                  "categories": {
+                    "lvl0": ["Køl"],
+                    "lvl1": ["Køl > Pålæg og fiskepålæg"],
+                    "lvl2": ["Køl > Pålæg og fiskepålæg > Fiskepålæg"]
+                  },
+                  "blockedByHoliday": false,
+                  "msg": "",
+                  "cpOffer": false,
+                  "cpOfferPrice": null,
+                  "cpOfferAmount": 0,
+                  "cpOfferId": 0,
+                  "cpOfferMsg": "",
+                  "offerMax": 0,
+                  "offerMaxDescription": "",
+                  "ageCode": 0
+                },
+                "unavailable_reason": "",
+                "discounts": [],
+                "deposits": [],
+                "replacement": null,
+                "returns": [],
+                "pickedCountryOfOrigin": "",
+                "comment": "",
+                "strikethrough": null,
+                "tagline": null,
+                "children": []
+              }
+            ],
+            "discounts": []
+          },
+          {
+            "orderlines": [
+              {
+                "quantity": 1,
+                "amount": 763,
+                "net_unitprice": 763,
+                "unitprice": 763,
+                "sort": 100000005,
+                "product": {
+                  "objectID": 900103,
+                  "erpProductID": "900103-EA",
+                  "name": "Kikærter øko",
+                  "link": "",
+                  "article": "900103",
+                  "price": 850,
+                  "brand": "Salling ØKO",
+                  "subBrand": "",
+                  "countryOfOrigin": [],
+                  "units": 400,
+                  "unitsOfMeasure": "g",
+                  "unitsOfMeasurePrice": 2125,
+                  "unitsOfMeasureOfferPrice": 0,
+                  "unitsOfMeasurePriceUnit": "Kg.",
+                  "properties": ["Økologisk", "Nøglehul"],
+                  "attributes": [
+                    {
+                      "attributeID": "euStarLabel",
+                      "attributeName": "Europæisk ejerskab",
+                      "attributeIconID": "euStarLabel",
+                      "attributeNameAndIcon": "Europæisk ejerskab > euStarLabel"
+                    },
+                    {
+                      "attributeID": "OrganicLabelEurope",
+                      "attributeName": "Økomærket EU",
+                      "attributeIconID": "oekologisk_eu",
+                      "attributeNameAndIcon": "Økomærket EU > oekologisk_eu"
+                    },
+                    {
+                      "attributeID": "KeyholeLabel",
+                      "attributeName": "Nøglehulsmærket",
+                      "attributeIconID": "noeglehulsmaerket",
+                      "attributeNameAndIcon": "Nøglehulsmærket > noeglehulsmaerket"
+                    }
+                  ],
+                  "productType": "Kikærter",
+                  "multipromo": 0,
+                  "imageGUIDs": {
+                    "1": "00000000000000000000000000900103",
+                    "7": "00000000000000000000000000900103",
+                    "11": "00000000000000000000000000900103"
+                  },
+                  "categories": {
+                    "lvl0": ["Kolonial"],
+                    "lvl1": ["Kolonial > Konserves og survarer"],
+                    "lvl2": ["Kolonial > Konserves og survarer > Kikærter"]
+                  },
+                  "blockedByHoliday": false,
+                  "msg": "",
+                  "cpOffer": false,
+                  "cpOfferPrice": null,
+                  "cpOfferAmount": 0,
+                  "cpOfferId": 0,
+                  "cpOfferMsg": "",
+                  "offerMax": 0,
+                  "offerMaxDescription": "",
+                  "ageCode": 0
+                },
+                "unavailable_reason": "",
+                "discounts": [],
+                "deposits": [],
+                "replacement": null,
+                "returns": [],
+                "pickedCountryOfOrigin": "",
+                "comment": "",
+                "strikethrough": null,
+                "tagline": null,
+                "children": []
+              }
+            ],
+            "discounts": []
+          }
+        ]
+      }
+    ],
+    "name": "Test Testesen",
+    "address": "Testvej 1, 1. tv",
+    "zipcity": "0000 Testby",
+    "pickupzone": {
+      "location": "Testvej 1",
+      "zipCode": "0000",
+      "city": "Testby",
+      "address": "Testvej 1, 1. tv",
+      "youtube_id": null,
+      "lat": "55.0000000",
+      "lng": "10.0000000",
+      "order_pickup_code": null,
+      "facility": 8,
+      "home_delivery": true
+    },
+    "receipt_content": {
+      "pickup_headline": "FAKE",
+      "pickup_body": "FAKE",
+      "pickup_guide_headline": "FAKE",
+      "pickup_guide_body": "FAKE"
+    },
+    "muah": false,
+    "warehouse": "Bilka: Odense",
+    "payment_solution": "pgw",
+    "payments": [
+      {
+        "providerId": "test-provider",
+        "amount": 60145
+      }
+    ],
+    "transact": "0000001"
+  },
+  "eid": 2000001,
+  "uid": 1000001,
+  "tid": "test-tid",
+  "info_object": null
+}

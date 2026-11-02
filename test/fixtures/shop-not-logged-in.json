@@ -1,0 +1,7 @@
+{
+  "msg": "Metoden kræver login",
+  "code": "ACCESS_DENIED",
+  "eid": 401,
+  "uid": -1,
+  "info_object": null
+}

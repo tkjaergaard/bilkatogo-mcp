@@ -1,0 +1,243 @@
+{
+  "stat": {
+    "amount": 2,
+    "diff": 2,
+    "price": 7800,
+    "price_vat": 1560,
+    "serv_amount": 0,
+    "serv_diff": 0,
+    "serv_price": 0,
+    "prod_amount": 0,
+    "prod_amount_no_deposits": 0,
+    "prod_diff": 0,
+    "prod_price": 0,
+    "ageCode": 0,
+    "verified_ageCode": 999,
+    "promo": 0,
+    "oos": false,
+    "has_replacements": false,
+    "blockedByHoliday": false,
+    "deposit": 0,
+    "deposit_amount": 0,
+    "deposit_diff": 0,
+    "delivery_price": 3900,
+    "is_member": 0,
+    "membership_offer_discount": 0,
+    "personalized_offer_discount": 0,
+    "packing": 3900,
+    "packaging_price": 0,
+    "price_no_promo": 0,
+    "subtotal_no_promo": 3900,
+    "uncollected_fee": null,
+    "global_discounts": [],
+    "vouchers": [],
+    "minimum_left": 42200,
+    "minimum_left_text": "<strong>422,00 kr.</strong> fra minimumskøb på 500,00 kr. alt inkl. for at få hjemmelevering",
+    "delivery_comment": {
+      "id": 1,
+      "comment": "",
+      "delivery_text": "FAKE-NOTE: levering ved hoveddør",
+      "access_required": false,
+      "doorcode": "",
+      "access_choice": "FAKE-ACCESS: ring på",
+      "selectable": true
+    },
+    "specifications": [
+      {
+        "text": "Pakkeservice",
+        "value": 3900
+      },
+      {
+        "text": "Emballage",
+        "value": 0
+      },
+      {
+        "text": "Leveringsgebyr",
+        "value": 3900
+      }
+    ]
+  },
+  "lines": [
+    {
+      "headline": "Services",
+      "type": "",
+      "lines": [
+        {
+          "orderlines": [
+            {
+              "subtotal": 0,
+              "net_subtotal": 3900,
+              "quantity": 1,
+              "amount": 3900,
+              "net_unitprice": 3900,
+              "unitprice": 3900,
+              "sort": 309462512,
+              "product": {
+                "objectID": 81474,
+                "erpProductID": "87418611-EA",
+                "name": "Pakkeservice",
+                "link": "",
+                "article": "87418611",
+                "price": 3900,
+                "brand": "",
+                "subBrand": "",
+                "countryOfOrigin": [],
+                "units": 0,
+                "unitsOfMeasure": "",
+                "unitsOfMeasurePrice": 0,
+                "unitsOfMeasureOfferPrice": 0,
+                "unitsOfMeasurePriceUnit": "",
+                "properties": [],
+                "attributes": [],
+                "productType": "",
+                "multipromo": 0,
+                "imageGUIDs": {},
+                "categories": {
+                  "lvl0": ["Services"],
+                  "lvl1": ["Services > ThomBerg Levering"],
+                  "lvl2": []
+                },
+                "blockedByHoliday": false,
+                "msg": "",
+                "cpOffer": false,
+                "cpOfferPrice": null,
+                "cpOfferAmount": 0,
+                "cpOfferId": 0,
+                "cpOfferMsg": "",
+                "offerMax": 0,
+                "offerMaxDescription": "",
+                "ageCode": 0
+              },
+              "unavailable_reason": "",
+              "discounts": [],
+              "deposits": [],
+              "replacement": null,
+              "returns": [],
+              "pickedCountryOfOrigin": "",
+              "comment": "",
+              "strikethrough": null,
+              "tagline": null,
+              "children": []
+            }
+          ],
+          "discounts": []
+        },
+        {
+          "orderlines": [
+            {
+              "subtotal": 0,
+              "net_subtotal": 3900,
+              "quantity": 1,
+              "amount": 3900,
+              "net_unitprice": 3900,
+              "unitprice": 3900,
+              "sort": 309462513,
+              "product": {
+                "objectID": 119085,
+                "erpProductID": "906540-EA",
+                "name": "Leveringsgebyr",
+                "link": "",
+                "article": "906540",
+                "price": 3900,
+                "brand": "",
+                "subBrand": "",
+                "countryOfOrigin": [],
+                "units": 0,
+                "unitsOfMeasure": "",
+                "unitsOfMeasurePrice": 0,
+                "unitsOfMeasureOfferPrice": 0,
+                "unitsOfMeasurePriceUnit": "",
+                "properties": [],
+                "attributes": [],
+                "productType": "",
+                "multipromo": 0,
+                "imageGUIDs": {},
+                "categories": {
+                  "lvl0": ["Services"],
+                  "lvl1": ["Services > ThomBerg Levering"],
+                  "lvl2": []
+                },
+                "blockedByHoliday": false,
+                "msg": "",
+                "cpOffer": false,
+                "cpOfferPrice": null,
+                "cpOfferAmount": 0,
+                "cpOfferId": 0,
+                "cpOfferMsg": "",
+                "offerMax": 0,
+                "offerMaxDescription": "",
+                "ageCode": 0
+              },
+              "unavailable_reason": "",
+              "discounts": [],
+              "deposits": [],
+              "replacement": null,
+              "returns": [],
+              "pickedCountryOfOrigin": "",
+              "comment": "",
+              "strikethrough": null,
+              "tagline": null,
+              "children": []
+            }
+          ],
+          "discounts": []
+        }
+      ]
+    }
+  ],
+  "messages": [],
+  "has_b2b_organisations": false,
+  "company": null,
+  "is_ski": false,
+  "hd_available": true,
+  "missing_hd_address": false,
+  "blockbit": 7,
+  "replacement_setting": 1,
+  "ageRestrictionEnabled": true,
+  "deliveryAddress": {
+    "id": "999001",
+    "dawa_uid": "00000000-0000-0000-0000-000000000000",
+    "name": "Test Testesen",
+    "address": "Testvej 1, 1. tv",
+    "street": "Testvej 1",
+    "zip": "0000",
+    "city": "Testby",
+    "sid": "1654",
+    "lat": "55.0000000",
+    "lng": "10.0000000",
+    "recipient_name": "Test Testesen",
+    "facility": 8,
+    "minimum_buy": 50000,
+    "blockbit": 7,
+    "nextAvailableDeliveryDate": "2026-11-02",
+    "currentDeliveryDate": "2030-01-07",
+    "missing_hd_address": false,
+    "accessconditions_required": false,
+    "hd_available": true,
+    "temporary_zipcode": "0000"
+  },
+  "deliveryDate": {
+    "displayDeliveryDate": "2030-01-07",
+    "deliveryDate": "2030-01-07",
+    "deliveryDay": "Man",
+    "intervalStart": "17:00",
+    "intervalEnd": "21:00",
+    "closed": 1,
+    "customer_chosen_pickupzone": "1",
+    "message": "",
+    "order_id": "",
+    "delivery_message": "Man. 07/01. kl. 17:00 - 21:00"
+  },
+  "checkoutconsent": [
+    {
+      "id": "unattended",
+      "required": true,
+      "value": 1,
+      "text": "Jeg accepterer, at varerne må stilles på den angivne adresse uden kvittering for modtagelsen og at risikoen for varerne overgår til mig som kunde ved levering."
+    }
+  ],
+  "eid": 2000001,
+  "uid": 1000001,
+  "tid": "test-tid",
+  "info_object": null
+}

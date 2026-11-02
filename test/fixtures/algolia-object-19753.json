@@ -1,0 +1,310 @@
+{
+  "storeData": {
+    "1653": {
+      "inStock": true,
+      "multipromo": "",
+      "offerDescription": "",
+      "offerFrom": "",
+      "offerUntil": "",
+      "offerMax": 0,
+      "offerMaxDescription": "",
+      "offerCount": 0,
+      "price": 3095,
+      "beforePrice": 0,
+      "multiPromoPrice": "",
+      "unitsOfMeasurePrice": 3095,
+      "unitsOfMeasurePriceUnit": "Kg.",
+      "unitsOfMeasureOfferPrice": 0,
+      "unitsOfMeasureShowPrice": 3095
+    },
+    "1661": {
+      "inStock": true,
+      "multipromo": "",
+      "offerDescription": "",
+      "offerFrom": "",
+      "offerUntil": "",
+      "offerMax": 0,
+      "offerMaxDescription": "",
+      "offerCount": 0,
+      "price": 3095,
+      "beforePrice": 0,
+      "multiPromoPrice": "",
+      "unitsOfMeasurePrice": 3095,
+      "unitsOfMeasurePriceUnit": "Kg.",
+      "unitsOfMeasureOfferPrice": 0,
+      "unitsOfMeasureShowPrice": 3095
+    }
+  },
+  "id": 19753,
+  "popularity": 0.999533,
+  "searchHierachy": [
+    "Skyr med vanilje 0,2%",
+    "Skyr m. smag",
+    "Skyr",
+    "Yoghurt & syrnede mælkeprodukter",
+    "Mejeri",
+    "Mejeri & køl"
+  ],
+  "newSearchHierachy": [],
+  "article": "17924601",
+  "price": 3095,
+  "sales_price": 3095,
+  "is_multibuy": false,
+  "multibuy_offer_description": "",
+  "unitOfMeasurePrice": 3095,
+  "unitOfMeasurePriceUnits": "Kg.",
+  "isInCurrentLeaflet": false,
+  "leafletTitle": "",
+  "gtin": "5711953011399",
+  "name": "Skyr m. vanilje 0,2% fedt u. tilsat sukker",
+  "description": "Skyr m. vanilje 0,2% fedt u. tilsat sukker",
+  "manufacturer": "Cheasy",
+  "brand": "Cheasy",
+  "subBrand": "",
+  "pant": false,
+  "units": 1,
+  "unitsOfMeasure": "kg",
+  "countryOfOrigin": [],
+  "netcontent": "1 kg",
+  "ageCode": 0,
+  "blockbit": 0,
+  "campaigntags": [],
+  "isInStock": 1,
+  "isInOffer": [],
+  "isGlobalOffer": false,
+  "inStockStore": [
+    1651, 1661, 1653, 1658, 1659, 1662, 1663, 1664, 1665, 1652, 1654, 1655, 1656, 1657, 1666, 1667,
+    1668, 1669
+  ],
+  "outStockStore": [],
+  "targetOffer": 0,
+  "targetCSR": 0,
+  "targetEnvironmental": 0,
+  "targetGBB": 1,
+  "targetHealthClaim": 0,
+  "targetManufacturer": "Cheasy",
+  "targetOrganic": 0,
+  "properties": [],
+  "attributes": [
+    {
+      "attributeID": "euStarLabel",
+      "attributeName": "Europæisk ejerskab",
+      "attributeIconID": "euStarLabel",
+      "attributeNameAndIcon": "Europæisk ejerskab > euStarLabel"
+    }
+  ],
+  "energyInfo": {
+    "rating": "",
+    "label": "",
+    "scale": "",
+    "color_code": "",
+    "data_sheet": ""
+  },
+  "safetyIcons": [],
+  "safetyText": [],
+  "safetyTexts": [],
+  "productName": "Skyr med vanilje 0,2%",
+  "hasImage": 1,
+  "imageGUIDs": {
+    "1": "0bfddd3c-a57c-4d8e-93d0-9c24e66cab99",
+    "7": "6da798f7-e9e3-40dd-9ec8-22919e69fe26",
+    "11": "0bfddd3c-a57c-4d8e-93d0-9c24e66cab99",
+    "20": "9b42cbb83138bbdfc64f9b6183f9b9b9",
+    "21": "ed1b4acedd3c010f615b332d2801a789",
+    "22": "553b95283b00bf8adf8e7476ff6cc508",
+    "23": "aed6a475fc6e39007fdb48182fef16bc",
+    "24": "0443eaae371c9a2057ff58719b273954",
+    "25": "15a2546de0c3b30d79564f534825bd7e"
+  },
+  "images": [
+    "https://digitalassets.sallinggroup.com/image/upload/e_trim:2/b_white,c_pad,e_sharpen:80,f_auto,q_auto,w_690,h_690/0bfddd3c-a57c-4d8e-93d0-9c24e66cab99"
+  ],
+  "alternativeSearchWords": [
+    "ID19753",
+    "AN17924601",
+    "17924601-EA",
+    "EAN5711953011399",
+    "1kg",
+    "Cheasy",
+    "skyr",
+    "skummetmælk",
+    "morgenmad",
+    "vanilje"
+  ],
+  "consumerFacingHierarchy": {
+    "lvl0": ["Mejeri & køl"],
+    "lvl1": ["Mejeri & køl > Mejeri"],
+    "lvl2": ["Mejeri & køl > Mejeri > Yoghurt & syrnede mælkeprodukter"],
+    "lvl3": ["Mejeri & køl > Mejeri > Yoghurt & syrnede mælkeprodukter > Skyr"]
+  },
+  "deepestCategoryPath": "Mejeri & køl > Mejeri > Yoghurt & syrnede mælkeprodukter > Skyr",
+  "categories": {
+    "lvl0": ["Mejeri"],
+    "lvl1": ["Mejeri > Yoghurt og syrnet"],
+    "lvl2": ["Mejeri > Yoghurt og syrnet > Yoghurt med smag"]
+  },
+  "isInAssortmentIn": [
+    1651, 1661, 1653, 1658, 1659, 1662, 1663, 1664, 1665, 1652, 1654, 1655, 1656, 1657, 1666, 1667,
+    1668, 1669
+  ],
+  "multipromos": [],
+  "productType": "Skyr m. smag",
+  "targetProductType": "Skyr m. smag",
+  "infos": [
+    {
+      "code": "description",
+      "title": "Beskrivelse",
+      "items": [
+        {
+          "type": 1,
+          "title": "",
+          "value": "Synthetic description for tests, not Bilka's text.<BR><BR><H2>About the brand</H2><BR>A second synthetic paragraph."
+        }
+      ]
+    },
+    {
+      "code": "ingredients",
+      "title": "Ingredienser",
+      "items": [
+        {
+          "type": 1,
+          "title": "",
+          "value": "MÆLK, vand (9,3%), modificeret stivelse, vaniljeekstrakt (0,1%), aroma, sødestof (aspartam**), knust vaniljestang, surhedsregulerende middel (citronsyre), YOGHURTKULTUR. **Indeholder en phenylalaninkilde."
+        }
+      ]
+    },
+    {
+      "code": "nutritional_100",
+      "title": "Næringsindhold",
+      "items": [
+        {
+          "type": 2,
+          "title": "Næringsindhold pr.",
+          "value": "100 g"
+        },
+        {
+          "type": 2,
+          "title": "Energi",
+          "value": "233 kJ"
+        },
+        {
+          "type": 2,
+          "title": "Energi",
+          "value": "55 kcal"
+        },
+        {
+          "type": 2,
+          "title": "Fedt",
+          "value": "0,2 g"
+        },
+        {
+          "type": 2,
+          "title": "- heraf mættede fedtsyrer",
+          "value": "0,1 g"
+        },
+        {
+          "type": 2,
+          "title": "Kulhydrater",
+          "value": "4,0 g"
+        },
+        {
+          "type": 2,
+          "title": "- heraf sukkerarter",
+          "value": "3,6 g"
+        },
+        {
+          "type": 2,
+          "title": "Protein",
+          "value": "8,6 g"
+        },
+        {
+          "type": 2,
+          "title": "Salt",
+          "value": "0,13 g"
+        }
+      ]
+    },
+    {
+      "code": "product_details",
+      "title": "Produktdetaljer",
+      "items": [
+        {
+          "type": 2,
+          "title": "Netto mængde",
+          "value": "1 kg"
+        },
+        {
+          "type": 2,
+          "title": "Varebetegnelse",
+          "value": "Syrnet mælk med vanilje 0,2% fedt. Indeholder sødestof"
+        },
+        {
+          "type": 2,
+          "title": "EAN",
+          "value": "5711953011399"
+        },
+        {
+          "type": 2,
+          "title": "Artikel",
+          "value": "17924601"
+        },
+        {
+          "type": 2,
+          "title": "PID",
+          "value": "19753"
+        }
+      ]
+    },
+    {
+      "code": "productspecification",
+      "title": "Specifikationer",
+      "items": [
+        {
+          "type": 2,
+          "title": "Maksimal temperatur opbevaring",
+          "value": "5 c"
+        },
+        {
+          "type": 2,
+          "title": "Minimumstemperatur opbevaring",
+          "value": "2 c"
+        },
+        {
+          "type": 2,
+          "title": "Holdbarhed efter åbning (dage)",
+          "value": "6 dage"
+        },
+        {
+          "type": 2,
+          "title": "Opbevaringsinstruktioner",
+          "value": "Synthetic storage advice for tests: keep cold."
+        },
+        {
+          "type": 2,
+          "title": "Tilberedning",
+          "value": "Omrøres før brug."
+        }
+      ]
+    }
+  ],
+  "hierarchy_node": "R63479",
+  "cpOffer": false,
+  "cpOfferFromDate": "",
+  "cpOfferToDate": "",
+  "cpOfferTitle": "",
+  "cpOfferPrice": 0,
+  "cpOfferAmount": 0,
+  "cpDiscount": 0,
+  "cpPercentDiscount": 0,
+  "cpOriginalPrice": 0,
+  "cpOfferId": 0,
+  "viking_offer_id": "",
+  "coupon_offer_id": "",
+  "eventBlockTag": "",
+  "blockedByHoliday": false,
+  "awards": [],
+  "erp_product_id": "17924601-EA",
+  "uom": "EA",
+  "nonsearchable": false,
+  "objectID": "19753"
+}
