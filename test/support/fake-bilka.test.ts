@@ -1,7 +1,7 @@
 // Checks the fake's own scripting, which later tickets rely on.
 
 import { expect, test } from "vitest";
-import { FakeBilka, GIGYA_API_KEY, JWT, LOGIN_TOKEN, routeOf } from "./fake-bilka.ts";
+import { FakeBilka, GIGYA_API_KEY, JWT, LOGIN_TOKEN, loadFixture, routeOf } from "./fake-bilka.ts";
 
 test("requests are routed by URL to Algolia, Gigya and shop routes", () => {
   expect(
@@ -42,6 +42,24 @@ test("the JWT exchange accepts the fixture login token and the cart wants its JW
   expect((await exchange("other-token")).status).toBe(403);
   expect(await (await cart(JWT)).json()).toMatchObject({ stat: { price: 7800 } });
   expect(await (await cart("other-jwt")).json()).toEqual({ code: 1, msg: "Du er ikke logget ind" });
+});
+
+test("ChangeLineCount replays the capture: product 156353 set to 1, then to 0", async () => {
+  // The capture's cart held only the two fees; 156353 costs 13,00 kr.
+  const bilka = new FakeBilka();
+  bilka.products.push({ objectID: "156353", name: "Captured product", price: 1300 });
+  const setTo = async (count: number) =>
+    (
+      await bilka.fetch(
+        `https://api.bilkatogo.dk/api/shop/v6/ChangeLineCount?u=w&productId=156353&count=${count}&fullCart=0`,
+        { headers: { jwt_token: JWT } },
+      )
+    ).json();
+
+  expect(await setTo(1)).toEqual(loadFixture("shop-change-line-count.json"));
+  expect(bilka.cart.stat).toMatchObject({ price: 9100, amount: 3 });
+  expect(await setTo(0)).toEqual(loadFixture("shop-change-line-count-zero.json"));
+  expect(bilka.cart).toEqual(loadFixture("shop-cart.json"));
 });
 
 test("timeOut makes fetch reject as an expired timeout signal would", async () => {

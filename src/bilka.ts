@@ -129,16 +129,44 @@ export type BilkaClient = {
   listStores(): Promise<Store[]>;
   /** The logged-in cart, with personal data already scrubbed. */
   getCart(): Promise<Cart>;
+  /**
+   * Sets one product's cart line to exactly `quantity`; 0 removes the line.
+   * One request, no retries: a failure throws a BilkaError whose `retryable`
+   * says whether trying again may help.
+   */
+  setLineQuantity(request: { productId: string; quantity: number }): Promise<LineChange>;
+};
+
+/** Bilka's answer to setting one cart line. */
+export type LineChange = {
+  product_id: string;
+  /** The line's quantity now, as Bilka reports it. */
+  quantity: number;
+  /** What one item costs, in DKK. Null once the line is removed. */
+  unit_price: number | null;
+  /** Bilka's note on the change, e.g. a stock or offer limit. Untrusted text. */
+  message: string | null;
+  offer_limit_message: string | null;
 };
 
 /** A failure talking to Bilka. The message is safe to show the model. */
 export class BilkaError extends Error {
   readonly status: number | undefined;
+  /**
+   * True for transport failures (timeout, unreachable, HTTP 429 or 5xx),
+   * where the same request may succeed later. False when Bilka answered and
+   * rejected it, which a retry won't change.
+   */
+  readonly retryable: boolean;
 
-  constructor(message: string, options: { status?: number; cause?: unknown } = {}) {
+  constructor(
+    message: string,
+    options: { status?: number; retryable?: boolean; cause?: unknown } = {},
+  ) {
     super(message, { cause: options.cause });
     this.name = "BilkaError";
     this.status = options.status;
+    this.retryable = options.retryable ?? false;
   }
 }
 
@@ -165,6 +193,7 @@ async function send(
   } catch (error) {
     const timedOut = error instanceof DOMException && error.name === "TimeoutError";
     throw new BilkaError(timedOut ? `${what} timed out` : `${what} failed: could not reach Bilka`, {
+      retryable: true,
       cause: error,
     });
   }
@@ -215,8 +244,10 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
   async function requestJson(what: string, url: string, init: RequestInit): Promise<unknown> {
     const response = await send(fetch, what, url, init);
     if (!response.ok) {
-      throw new BilkaError(`${what} failed with HTTP ${response.status}`, {
-        status: response.status,
+      const { status } = response;
+      throw new BilkaError(`${what} failed with HTTP ${status}`, {
+        status,
+        retryable: status === 429 || status >= 500,
       });
     }
     return readJson(what, response);
@@ -313,7 +344,37 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       });
       return toCart(data);
     },
+
+    async setLineQuantity({ productId, quantity }) {
+      const what = "Setting the cart quantity";
+      const data = await shopJson(what, "v6/ChangeLineCount", {
+        productId,
+        count: String(quantity),
+        fullCart: "0",
+      });
+      return toLineChange(what, productId, data);
+    },
   };
+}
+
+/** Shapes the ChangeLineCount answer (docs/research.md §3). */
+function toLineChange(what: string, productId: string, data: Record<string, unknown>): LineChange {
+  const quantity = data.productAmount;
+  if (typeof quantity !== "number" || String(data.productId) !== productId) {
+    throw new BilkaError(`${what} got an answer from Bilka without the line's new quantity`);
+  }
+  const unitPrice = typeof data.productUnitPrice === "number" ? data.productUnitPrice : undefined;
+  return {
+    product_id: productId,
+    quantity,
+    unit_price: quantity > 0 ? kroner(unitPrice) : null,
+    message: text(data.message),
+    offer_limit_message: text(data.offerLimitMessage),
+  };
+}
+
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
 /**
