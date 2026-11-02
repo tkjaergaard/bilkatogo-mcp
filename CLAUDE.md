@@ -7,7 +7,7 @@ Before touching the Bilka API, login or tool design, read `docs/research.md`. It
 ## Stack
 
 - TypeScript on Node ≥ 24. Node runs the `.ts` source directly by stripping the types, so there's no build step. Use only TypeScript syntax that can simply be erased: no enums, namespaces or parameter properties.
-- Keep dependencies minimal. Runtime: the SDK and Zod only, and use built-in `fetch`. Dev: TypeScript 7 (type-check only), Vitest, oxlint, oxfmt, `@types/node`, and the SDK's `@modelcontextprotocol/client` (tests only).
+- Keep dependencies minimal. Runtime: the SDK and Zod only, and use built-in `fetch`. Dev: TypeScript 7 (type-check only), Vitest, oxlint, oxfmt, Fallow (dead-code gate, pinned to an exact version), `@types/node`, and the SDK's `@modelcontextprotocol/client` (tests only).
 - MCP spec **2026-07-28**, which is stateless: there's no `initialize` handshake, the version goes in each request's `_meta`, and there's a `server/discover` RPC. Clients on the older `initialize` handshake are still served through the SDK's backward compatibility.
 - Use the v2 TypeScript SDK: `@modelcontextprotocol/server` (docs: https://ts.sdk.modelcontextprotocol.io/v2/). Most tutorials and model training data show the v1 package `@modelcontextprotocol/sdk`, which is the old API. When an example imports from it, look up the v2 equivalent instead of copying it.
 - Zod v4 for tool input schemas, because the SDK depends on it.
