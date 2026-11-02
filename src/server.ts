@@ -77,6 +77,56 @@ export function createServer(config: ServerConfig): McpServer {
     },
   );
 
+  server.registerTool(
+    "get_product_details",
+    {
+      title: "Get BilkaToGo product details",
+      description: [
+        "Everything the BilkaToGo catalogue holds about one product: size, prices in DKK at the",
+        "configured store, unit price, category, labels, and the product page's sections, which",
+        "often include ingredients (allergens in capitals) and nutrition per 100 g.",
+        "Not every product has every section. Take product ids from search_products.",
+        "Needs no login.",
+        UNTRUSTED_TEXT_NOTE,
+      ].join(" "),
+      inputSchema: z.object({
+        product_id: z
+          .string()
+          .trim()
+          .regex(/^\d{1,12}$/, "A product id is a number such as 19753, from search_products.")
+          .describe('The product id from search_products, e.g. "19753".'),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ product_id }) => {
+      const storeId = optionalStoreId(config.storeId);
+      const product = await bilka.getProduct({ productId: product_id, storeId });
+      if (product === null) {
+        throw new Error(
+          `Product ${product_id} was not found in the BilkaToGo catalogue. ` +
+            "Use search_products to find current product ids.",
+        );
+      }
+      return jsonResult({ store_id: storeId ?? null, product });
+    },
+  );
+
+  server.registerTool(
+    "list_stores",
+    {
+      title: "List Bilka stores",
+      description: [
+        "List the Bilka stores that BilkaToGo shops from, with their store ids.",
+        "Pickup points are listed under the store that serves them.",
+        "To shop at a store, set its `store_id` as BILKATOGO_STORE_ID in the server's configuration.",
+        "Needs no login.",
+      ].join(" "),
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async () => jsonResult({ stores: await bilka.listStores() }),
+  );
+
   return server;
 }
 
@@ -99,6 +149,11 @@ function requireStoreId(storeId: string | undefined): string {
     );
   }
   return storeId.trim();
+}
+
+/** The configured store id, or undefined when none is set. */
+function optionalStoreId(storeId: string | undefined): string | undefined {
+  return storeId === undefined || storeId.trim() === "" ? undefined : requireStoreId(storeId);
 }
 
 function jsonResult(value: unknown) {
