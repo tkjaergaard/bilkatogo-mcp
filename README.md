@@ -153,6 +153,8 @@ Before changing how the server talks to Bilka, read [docs/research.md](docs/rese
 
 To record real Bilka responses from your own account for test fixtures, see [docs/capture.md](docs/capture.md).
 
+Releases to npm go through a release PR: see [docs/releasing.md](docs/releasing.md).
+
 ## License
 
 [MIT](LICENSE). The test fixtures derived from nickknissen/bilkatogo keep its MIT notice, see [test/fixtures/README.md](test/fixtures/README.md).
