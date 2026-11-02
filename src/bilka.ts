@@ -399,17 +399,25 @@ async function send(
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new BilkaError(`${what} timed out`, { retryable: true, cause: error });
-    }
+    if (isTimeout(error)) throw timedOut(what, error);
     throw new UnreachableError(what, error);
   }
+}
+
+function isTimeout(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "TimeoutError";
+}
+
+function timedOut(what: string, cause: unknown): BilkaError {
+  return new BilkaError(`${what} timed out`, { retryable: true, cause });
 }
 
 async function readJson(what: string, response: Response): Promise<unknown> {
   try {
     return await response.json();
   } catch (error) {
+    // The timeout signal also covers reading the body.
+    if (isTimeout(error)) throw timedOut(what, error);
     throw new BilkaError(`${what} answered with something that isn't JSON`, { cause: error });
   }
 }
@@ -431,7 +439,7 @@ export type GigyaAnswer = { status: number; body: Record<string, unknown> };
 
 /**
  * Exchanges a Gigya login token for a shop JWT (`accounts.getJWT`). Throws a
- * BilkaError when Gigya can't be reached; a rejection comes back as the answer
+ * BilkaError when Gigya can't be reached or answers HTTP 429 or 5xx; a rejection comes back as the answer
  * so the caller can explain it without ever quoting the token.
  */
 export async function exchangeLoginToken(
@@ -449,6 +457,13 @@ export async function exchangeLoginToken(
       httpStatusCodes: "true",
     }),
   });
+  // An outage isn't a rejection: the caller would forget a login token that still works.
+  if (response.status === 429 || response.status >= 500) {
+    throw new BilkaError(`${what} failed with HTTP ${response.status}`, {
+      status: response.status,
+      retryable: true,
+    });
+  }
   const data = await readJson(what, response).catch(() => undefined);
   const body = isRecord(data) ? data : {};
   if (response.ok && body.errorCode === 0 && typeof body.id_token === "string" && body.id_token) {

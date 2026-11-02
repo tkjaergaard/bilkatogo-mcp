@@ -131,6 +131,23 @@ test("a source is tried at most once: a pasted token equal to the rejected remem
   expect(bilka.calls("gigya.getJWT")).toHaveLength(1);
 });
 
+test("an outage at Gigya keeps the remembered token, which works once Gigya is back", async () => {
+  const store = memoryStore(LOGIN_TOKEN);
+  const { callTool, bilka } = await connect({ sessionStore: store });
+  bilka.failTimes("gigya.getJWT", 1, 503);
+
+  const failed = await callTool("get_cart");
+  const retried = await callTool("get_cart");
+
+  expect(failed.isError).toBe(true);
+  expect(failed.text).toContain("HTTP 503");
+  expect(retried.isError).toBe(false);
+  expect(bilka.calls("gigya.getJWT").map((r) => r.form().get("login_token"))).toEqual([
+    LOGIN_TOKEN,
+    LOGIN_TOKEN,
+  ]);
+});
+
 test("when every source fails, the error names each one and holds no secret", async () => {
   const { callTool, bilka } = await connect({
     sessionStore: memoryStore("stale-remembered-token"),

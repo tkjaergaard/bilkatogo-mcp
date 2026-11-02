@@ -156,6 +156,17 @@ test("set_cart_quantity tells the model it's destructive, absolute and only for 
 
 test.each([
   ["a timeout", (bilka: FakeBilka) => bilka.timeOut("shop.ChangeLineCount")],
+  [
+    "a timeout while reading the answer",
+    (bilka: FakeBilka) =>
+      bilka.script("shop.ChangeLineCount", () => {
+        const timeout = new DOMException(
+          "The operation was aborted due to timeout",
+          "TimeoutError",
+        );
+        return new Response(new ReadableStream({ start: (body) => body.error(timeout) }));
+      }),
+  ],
   ["HTTP 429", (bilka: FakeBilka) => bilka.failTimes("shop.ChangeLineCount", 1, 429)],
   ["HTTP 503", (bilka: FakeBilka) => bilka.failTimes("shop.ChangeLineCount", 1, 503)],
 ])(
