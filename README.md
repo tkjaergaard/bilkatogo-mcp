@@ -37,21 +37,40 @@ To find your store's id, ask your assistant to run `list_stores` ("which Bilka s
 
 ## Log in
 
-Tools that use your account (so far `get_cart`) need a BilkaToGo login token. The server reads it only when such a tool runs; search and the store list work without it.
+Tools that use your account (so far `get_cart`) need a BilkaToGo login. The server logs in only when such a tool runs; search and the store list work without any credentials.
 
-1. Log in on [bilkatogo.dk](https://www.bilkatogo.dk) in your browser.
-2. Open the developer console and run `localStorage.getItem("auth")`. The value is your login token.
-3. Give it to the server in one of two ways (the environment wins when both are set):
-   - the environment variable `BILKATOGO_LOGIN_TOKEN`, or
-   - `~/.config/bilka-mcp/login.json` (or under `$XDG_CONFIG_HOME`), readable only by you:
+### Credential options
 
-     ```sh
-     mkdir -p ~/.config/bilka-mcp
-     printf '{"loginToken": "%s"}\n' 'PASTE-TOKEN-HERE' > ~/.config/bilka-mcp/login.json
-     chmod 600 ~/.config/bilka-mcp/login.json
-     ```
+Give the server one or both of these:
 
-The server swaps the token for a 24-hour session with Bilka's login service and keeps that session in memory. When the token expires or you log out in the browser, `get_cart` says so; paste a fresh one. Logging in with email and password comes later.
+- **Email and password**: `BILKATOGO_EMAIL` and `BILKATOGO_PASSWORD`. The server logs in through Bilka's login service (SAP Gigya) by itself.
+- **A pasted login token**: `BILKATOGO_LOGIN_TOKEN`. This is the fallback in case Bilka ever blocks automated password login. To get one, log in on [bilkatogo.dk](https://www.bilkatogo.dk), open the browser's developer console and run `localStorage.getItem("auth")`.
+
+Each can come from the environment or from `~/.config/bilka-mcp/login.json` (under `$XDG_CONFIG_HOME` when that's set). The environment wins when both are set. Keep the file readable only by you; the server warns when it isn't:
+
+```sh
+mkdir -p ~/.config/bilka-mcp
+(umask 077 && cat > ~/.config/bilka-mcp/login.json) <<'JSON'
+{ "email": "you@example.com", "password": "PASSWORD", "loginToken": "OPTIONAL-PASTED-TOKEN" }
+JSON
+chmod 600 ~/.config/bilka-mcp/login.json  # in case the file already existed
+```
+
+Leave out the keys you don't use.
+
+### How the server logs in
+
+When a tool needs the account, the server tries these login sources in order, each at most once, and uses the first that works:
+
+1. the remembered login token from the session file (see below)
+2. the pasted login token
+3. a fresh login with your email and password
+
+The login token is swapped for a 24-hour session (a JWT), kept in memory and renewed a few minutes before it runs out. If Bilka still says a request isn't logged in, the server logs in again and retries that request once. If every source fails, the tool's error lists the sources it tried and what Bilka answered, without any secret in it.
+
+### The session file
+
+A login token that works is saved to `~/.config/bilka-mcp/session.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"loginToken": "…"}`, so a restart doesn't need a fresh password login. The file is written atomically (a temp file renamed into place) with mode 600, readable only by you. If it can't be written, the server writes a warning to stderr and carries on; it will log in again after the next restart. Delete the file to make the server forget the login.
 
 ## Register it in Claude Code
 
@@ -63,7 +82,7 @@ claude mcp add bilka -e BILKATOGO_STORE_ID=1654 -- node "$PWD/src/main.ts"
 
 Then ask Claude something like "find havremælk". Add `-s user` to make the server available in every project.
 
-The store id isn't a secret, so it's fine in the MCP config. The login token is: keep it in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
+The store id isn't a secret, so it's fine in the MCP config. Your password and login token are: keep them in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
 
 Any other MCP client works the same way: run `node /path/to/bilka-mcp/src/main.ts` over stdio with `BILKATOGO_STORE_ID` set.
 

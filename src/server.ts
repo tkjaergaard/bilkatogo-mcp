@@ -6,6 +6,7 @@ import { createSession } from "./auth.ts";
 import { createBilkaClient, PRODUCT_ID_PATTERN, type Session } from "./bilka.ts";
 import { summariseCart } from "./cart.ts";
 import type { CredentialSources } from "./credentials.ts";
+import type { SessionStore } from "./session-store.ts";
 
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
@@ -31,6 +32,13 @@ export type ServerConfig = {
    * saying how to configure a login.
    */
   credentials?: CredentialSources | undefined;
+  /**
+   * Remembers the login token that last worked, across restarts. main.ts uses
+   * `fileSessionStore()`; without one, the token is remembered in memory only.
+   */
+  sessionStore?: SessionStore | undefined;
+  /** The clock, in epoch milliseconds, for JWT expiry. Defaults to `Date.now`. */
+  now?: () => number;
   /** Diagnostics for the person running the server. Defaults to stderr. */
   warn?: (line: string) => void;
   limits?: Partial<Limits>;
@@ -47,6 +55,8 @@ function sessionFor(config: ServerConfig): Session {
     session = createSession({
       fetch: config.fetch,
       credentials: config.credentials,
+      store: config.sessionStore,
+      now: config.now ?? Date.now,
       warn: config.warn ?? ((line) => console.error(`bilka-mcp: ${line}`)),
     });
     sessions.set(config, session);

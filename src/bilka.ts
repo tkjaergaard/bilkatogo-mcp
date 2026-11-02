@@ -113,6 +113,8 @@ export type SearchRequest = {
 /** Hands the client a JWT for shop calls that need the account. */
 export type Session = {
   jwt(): Promise<string>;
+  /** The shop rejected this JWT: the next `jwt()` logs in afresh. */
+  rejected(jwt: string): void;
 };
 
 export type BilkaClient = {
@@ -146,8 +148,9 @@ export class BilkaError extends Error {
 export class NotLoggedInError extends BilkaError {
   constructor(what: string) {
     super(
-      `${what} failed: Bilka says the session isn't logged in. The login token has probably ` +
-        "expired; copy a fresh one from the browser and set BILKATOGO_LOGIN_TOKEN.",
+      `${what} failed: Bilka says the session isn't logged in, even after logging in again. ` +
+        "Try again later; if it keeps happening, log in on bilkatogo.dk and copy a fresh login " +
+        "token into BILKATOGO_LOGIN_TOKEN.",
     );
     this.name = "NotLoggedInError";
   }
@@ -209,6 +212,39 @@ export async function exchangeLoginToken(
   return { rejected: { status: response.status, body } };
 }
 
+/**
+ * Logs in to Gigya with email and password (`accounts.login`) and returns the
+ * login token (`sessionInfo.cookieValue`). Checked live: it works headless
+ * (docs/research.md §3). Throws a BilkaError when Gigya can't be reached; a
+ * rejection comes back as the answer. The answer's account profile is never
+ * passed on.
+ */
+export async function passwordLogin(
+  fetch: typeof globalThis.fetch,
+  email: string,
+  password: string,
+): Promise<{ loginToken: string } | { rejected: GigyaAnswer }> {
+  const what = "BilkaToGo login (Gigya password login)";
+  const response = await send(fetch, what, `${GIGYA_HOST}/accounts.login`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      loginID: email,
+      password,
+      apiKey: GIGYA_API_KEY,
+      httpStatusCodes: "true",
+    }),
+  });
+  const data = await readJson(what, response).catch(() => undefined);
+  const body = isRecord(data) ? data : {};
+  const session = body.sessionInfo;
+  const token = isRecord(session) ? session.cookieValue : undefined;
+  if (response.ok && body.errorCode === 0 && typeof token === "string" && token) {
+    return { loginToken: token };
+  }
+  return { rejected: { status: response.status, body: { errorCode: body.errorCode } } };
+}
+
 export function createBilkaClient(options: { fetch: typeof fetch; session: Session }): BilkaClient {
   const { fetch, session } = options;
 
@@ -224,8 +260,9 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
 
   /**
    * A shop call that needs the account: the JWT goes in the `jwt_token` header
-   * and nothing else (no cookies; see docs/research.md §3). The answer is
-   * scrubbed of personal data before anything reads it.
+   * and nothing else (no cookies; see docs/research.md §3). When the shop says
+   * "not logged in", the session logs in afresh and the call is retried once.
+   * The answer is scrubbed of personal data before anything reads it.
    */
   async function shopJson(
     what: string,
@@ -233,14 +270,17 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
     params: Record<string, string>,
     init: RequestInit = { method: "GET" },
   ): Promise<Record<string, unknown>> {
-    const jwt = await session.jwt();
-    const data = await requestJson(what, shopUrl(endpoint, params), {
-      ...init,
-      headers: { ...(init.headers as Record<string, string>), jwt_token: jwt },
-    });
-    if (!isRecord(data)) throw new BilkaError(`${what} answered with something unexpected`);
-    if (isNotLoggedIn(data)) throw new NotLoggedInError(what);
-    return scrubPersonalData(data) as Record<string, unknown>;
+    for (let attempt = 1; ; attempt++) {
+      const jwt = await session.jwt();
+      const data = await requestJson(what, shopUrl(endpoint, params), {
+        ...init,
+        headers: { ...(init.headers as Record<string, string>), jwt_token: jwt },
+      });
+      if (!isRecord(data)) throw new BilkaError(`${what} answered with something unexpected`);
+      if (!isNotLoggedIn(data)) return scrubPersonalData(data) as Record<string, unknown>;
+      if (attempt === 2) throw new NotLoggedInError(what);
+      session.rejected(jwt);
+    }
   }
 
   /** A shop API URL. The website adds `u=w` to every shop call, so do we. */

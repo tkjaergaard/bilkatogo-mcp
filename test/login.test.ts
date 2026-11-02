@@ -65,23 +65,6 @@ test("without any login, get_cart says how to configure one and sends nothing", 
   expect(bilka.requests).toEqual([]);
 });
 
-test("with only an email and password, get_cart asks for a login token instead", async () => {
-  const { callTool, bilka } = await connect({
-    credentials: {
-      env: { BILKATOGO_EMAIL: "test@example.com", BILKATOGO_PASSWORD: "test-password" },
-    },
-  });
-
-  const result = await callTool("get_cart");
-
-  expect(result.isError).toBe(true);
-  expect(result.text).toMatch(/password login isn't supported yet/i);
-  expect(result.text).toContain("BILKATOGO_LOGIN_TOKEN");
-  expect(result.text).not.toContain("test-password");
-  expect(result.text).not.toContain("test@example.com");
-  expect(bilka.requests).toEqual([]);
-});
-
 test("a rejected login token gives a clear error without the token in it", async () => {
   const { callTool, bilka } = await connect({
     credentials: { env: { BILKATOGO_LOGIN_TOKEN: LOGIN_TOKEN } },
