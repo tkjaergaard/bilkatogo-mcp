@@ -722,9 +722,10 @@ export function createServer(config: ServerConfig): McpServer {
           .regex(/^\d{2}:\d{2}$/, "A start time looks like 08:00.")
           .describe('The slot\'s start time, as list_delivery_slots gives it, e.g. "08:00".'),
       }),
+      // It overwrites the slot already on the cart, like set_delivery_place does the place.
       annotations: {
         readOnlyHint: false,
-        destructiveHint: false,
+        destructiveHint: true,
         idempotentHint: true,
         openWorldHint: true,
       },

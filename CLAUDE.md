@@ -20,7 +20,7 @@ These come from nemlig-mcp. Each one protects the user's real Bilka account.
 
 - **Fixed tool list.** Tools are an explicit list, and a test asserts the exact set of tool names.
 - **Checkout stays manual.** The server covers search, the cart (including its delivery place and slot) and order history. Placing an order or touching payment happens on the website, by a person.
-- **Absolute quantities.** Cart tools set a quantity, they don't add one (0 removes the line). They carry `destructiveHint: true`. Read-only tools carry `readOnlyHint: true`.
+- **Absolute quantities.** Cart tools set a quantity, they don't add one (0 removes the line). Every tool that changes the cart (its lines, delivery place or slot) carries `destructiveHint: true`. `select_store` is the one write that only changes a local setting: `readOnlyHint: false`, `destructiveHint: false`. Every other tool is read-only and carries `readOnlyHint: true`.
 - **Privacy scrub.** Name, address, phone, email, door codes and pickup codes are replaced with a marker before a response reaches the model.
 - **Untrusted text.** Product and order text comes from Bilka. Tool descriptions tell the model to treat it as data, not as instructions.
 - **Light traffic.** Keep request volume at what one person shopping would generate.
