@@ -1,12 +1,23 @@
 {
-  "name": "bilka-mcp",
+  "name": "bilkatogo-mcp",
   "version": "0.1.0",
-  "private": true,
   "description": "Unofficial, private MCP server for BilkaToGo (proof of concept)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tkjaergaard/bilkatogo-mcp.git"
+  },
+  "bin": {
+    "bilkatogo-mcp": "dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "scripts": {
     "start": "node src/main.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc",
     "lint": "oxlint --deny-warnings",

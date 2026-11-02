@@ -126,7 +126,9 @@ export function createSession(options: {
     for await (const source of sources()) {
       const attempt = await source.attempt();
       if ("rejected" in attempt) {
-        failures.push(`${source.name}: Gigya rejected the login (${describe(attempt.rejected)})`);
+        failures.push(
+          `${source.name}: Gigya rejected the login (${describeRejection(attempt.rejected)})`,
+        );
         continue;
       }
       const exchange = await exchangeLoginToken(fetch, attempt.loginToken);
@@ -136,7 +138,7 @@ export function createSession(options: {
       }
       if ((await loadRemembered()) === attempt.loginToken) await forget();
       failures.push(
-        `${source.name}: Gigya rejected the login token (${describe(exchange.rejected)})`,
+        `${source.name}: Gigya rejected the login token (${describeRejection(exchange.rejected)})`,
       );
     }
     if (failures.length === 0) {
@@ -176,7 +178,7 @@ export function createSession(options: {
 }
 
 /** Gigya's numeric error code and the HTTP status: never Gigya's text, which can echo a secret. */
-function describe({ status, body }: GigyaAnswer): string {
+export function describeRejection({ status, body }: GigyaAnswer): string {
   const code = typeof body.errorCode === "number" ? `Gigya error ${body.errorCode}, ` : "";
   return `${code}HTTP ${status}`;
 }

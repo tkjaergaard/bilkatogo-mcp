@@ -1,10 +1,10 @@
-# bilka-mcp
+# bilkatogo-mcp
 
 An unofficial, private MCP server for [BilkaToGo](https://www.bilkatogo.dk), the Danish grocery shop. It's a local proof of concept: your MCP client starts it over stdio, and it talks to BilkaToGo for you. It isn't affiliated with Bilka or Salling Group.
 
 ## Disclaimer
 
-bilka-mcp is unofficial and is not affiliated with, endorsed by or supported by Bilka or Salling Group A/S. "Bilka" and "BilkaToGo" are trademarks of Salling Group, used here only to say what the software works with. It talks to BilkaToGo's private web API, the same one the website uses, which can change or stop working at any time.
+bilkatogo-mcp is unofficial and is not affiliated with, endorsed by or supported by Bilka or Salling Group A/S. "Bilka" and "BilkaToGo" are trademarks of Salling Group, used here only to say what the software works with. It talks to BilkaToGo's private web API, the same one the website uses, which can change or stop working at any time.
 
 BilkaToGo's and Salling Group's terms don't mention tools like this, and automated use may still conflict with them. Salling Group may deactivate a Salling Group Profile it believes is misused (profile terms §5.5, §9). That profile is also your login for Bilka plus, føtex plus, Netto+ and other Salling services, so losing it affects more than BilkaToGo.
 
@@ -35,13 +35,7 @@ Placing orders and payment stay on the website: the server can't do either. Your
 
 ## Requirements
 
-Node.js 24 or later. Node runs the TypeScript source directly, so there's no build step.
-
-```sh
-git clone https://github.com/tkjaergaard/bilkatogo-mcp.git
-cd bilkatogo-mcp
-npm install
-```
+Node.js 24 or later. `npx` comes with it and runs the server from npm, so there's nothing to clone or install. To run it from a clone instead, see [Development](#development).
 
 ## Choose your store
 
@@ -59,9 +53,28 @@ The four delivery tools were added on request too: when home delivery is sold ou
 
 Tools that use your account (`get_cart`, the two cart setters, the delivery tools and the order tools) need a BilkaToGo login. Use your own Salling Group Profile only: the profile terms say it's personal and its login mustn't be shared (see [Disclaimer](#disclaimer)). The server logs in only when such a tool runs; search and the store list work without any credentials.
 
+### Log in from the terminal
+
+The simplest way is the `login` command. It asks for your email and password, checks them with Bilka's login service (SAP Gigya), and saves only the login token Gigya hands back, to the [session file](#the-session-file). Your password isn't stored anywhere.
+
+```sh
+npx bilkatogo-mcp@latest login
+```
+
+If Bilka ever blocks password login, use `login --token` and paste a login token from the browser instead (see below).
+
+| Command | What it does |
+|---|---|
+| `npx bilkatogo-mcp@latest login` | Logs in with email and password. Only the login token is saved. |
+| `npx bilkatogo-mcp@latest login --token` | Logs in with a login token pasted from the browser. |
+| `npx bilkatogo-mcp@latest status` | Checks whether the saved login still works. |
+| `npx bilkatogo-mcp@latest logout` | Forgets the saved login. |
+
+Restart your MCP client after logging in if the server is already running.
+
 ### Credential options
 
-Give the server one or both of these:
+Instead of the `login` command, you can give the server one or both of these:
 
 - **Email and password**: `BILKATOGO_EMAIL` and `BILKATOGO_PASSWORD`. The server logs in through Bilka's login service (SAP Gigya) by itself.
 - **A pasted login token**: `BILKATOGO_LOGIN_TOKEN`. This is the fallback in case Bilka ever blocks automated password login. To get one, log in on [bilkatogo.dk](https://www.bilkatogo.dk), open the browser's developer console and run `localStorage.getItem("auth")`.
@@ -90,27 +103,45 @@ The login token is swapped for a 24-hour session (a JWT), kept in memory and ren
 
 ### The session file
 
-A login token that works is saved to `~/.config/bilka-mcp/session.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"loginToken": "…"}`, so a restart doesn't need a fresh password login. The file is written atomically (a temp file renamed into place) with mode 600, readable only by you. If it can't be written, the server writes a warning to stderr and carries on; it will log in again after the next restart. When Gigya rejects the remembered token, the server deletes the file too, so the next restart doesn't try that token first. Delete the file yourself to make the server forget the login.
+A login token that works is saved to `~/.config/bilka-mcp/session.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"loginToken": "…"}`, so a restart doesn't need a fresh password login. The file is written atomically (a temp file renamed into place) with mode 600, readable only by you. If it can't be written, the server writes a warning to stderr and carries on; it will log in again after the next restart. When Gigya rejects the remembered token, the server deletes the file too, so the next restart doesn't try that token first. Run `logout`, or delete the file yourself, to make the server forget the login.
 
 ## Register it in Claude Code
 
-From the repo directory:
-
 ```sh
-claude mcp add bilka -- node "$PWD/src/main.ts"
+claude mcp add bilka -- npx -y bilkatogo-mcp@latest
 ```
 
 Then ask Claude something like "use Bilka Odense and find havremælk". Add `-s user` to make the server available in every project.
 
+With `@latest`, `npx` checks npm for a new version each time your MCP client starts the server, so an update arrives with the next restart. To stay on one version, name it instead, e.g. `bilkatogo-mcp@0.1.0`.
+
 To set a default store in the MCP config instead, add `-e BILKATOGO_STORE_ID=1654`. The store id isn't a secret, so it's fine there. Your password and login token are: keep them in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
 
-Any other MCP client works the same way: run `node /path/to/bilkatogo-mcp/src/main.ts` over stdio.
+Any other MCP client works the same way: it runs `npx -y bilkatogo-mcp@latest` over stdio. For example, in Claude Desktop's `claude_desktop_config.json`:
+
+```json
+{ "mcpServers": { "bilka": { "command": "npx", "args": ["-y", "bilkatogo-mcp@latest"] } } }
+```
 
 ## Development
+
+From a clone, Node runs the TypeScript source directly, with no build step:
+
+```sh
+git clone https://github.com/tkjaergaard/bilkatogo-mcp.git
+cd bilkatogo-mcp
+npm install
+claude mcp add bilka -- node "$PWD/src/main.ts"
+```
+
+The setup commands work the same way: `node src/main.ts login`.
+
+The npm package is different: Node won't strip types from files under `node_modules`, which is where `npx` installs it. So `npm pack` and `npm publish` first run `npm run build`, which emits JavaScript into `dist/` (`tsconfig.build.json`), and the package's `bilkatogo-mcp` command runs `dist/main.js`. CI packs the package and runs it through `npx` on every push.
 
 | Script | What it does |
 |---|---|
 | `npm start` | Runs the server on stdio. |
+| `npm run build` | Emits the published JavaScript into `dist/`. Only `npm pack` and `npm publish` need it. |
 | `npm test` | Runs the test suite (Vitest). It's offline: a fake Bilka answers every request. |
 | `npm run typecheck` | Type-checks with TypeScript 7. Nothing is emitted. |
 | `npm run lint` | Lints with oxlint. |

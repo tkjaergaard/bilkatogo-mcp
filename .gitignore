@@ -9,3 +9,6 @@ captures/
 
 # Fallow analysis cache.
 .fallow/
+
+# The published JavaScript (npm run build).
+dist/
