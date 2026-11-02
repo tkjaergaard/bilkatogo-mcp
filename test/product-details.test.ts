@@ -31,6 +31,7 @@ test("get_product_details returns the product's index record, cleaned up, with D
       in_stock: true,
       in_store_assortment: true,
       category: "Mejeri & køl > Mejeri > Yoghurt & syrnede mælkeprodukter > Skyr",
+      mix: null,
       product_type: "Skyr m. smag",
       gtin: "5711953011399",
       labels: ["Europæisk ejerskab"],

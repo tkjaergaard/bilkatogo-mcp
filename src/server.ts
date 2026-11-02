@@ -7,6 +7,7 @@ import {
   CATEGORY_PATH_PATTERN,
   createBilkaClient,
   MAX_CATEGORY_LEVELS,
+  MIX_OFFER_ID_PATTERN,
   ORDER_ID_PATTERN,
   PRODUCT_ID_PATTERN,
   type Session,
@@ -188,7 +189,8 @@ export function createServer(config: ServerConfig): McpServer {
       title: "Search BilkaToGo products",
       description: [
         "Search or browse the BilkaToGo catalogue at the configured Bilka store.",
-        "Give a `query`, or leave it out and browse with `category`, `only_leaflet` or `only_offers`.",
+        "Give a `query`, or leave it out and browse with `category`, `only_leaflet`, `only_offers`",
+        "or `mix_offer_id`.",
         '`category` is a full path such as "Mejeri & køl > Pålæg", from list_categories or from a',
         "product's own `category`; it combines with the other inputs.",
         "`only_leaflet` means this week's Bilka Avisen (the leaflet) and nothing else.",
@@ -197,10 +199,14 @@ export function createServer(config: ServerConfig): McpServer {
         "Prices are in DKK. `price` is what one item costs now; when the product is discounted,",
         '`regular_price` and `saving` say by how much. `offer` is the offer text, e.g. "Mix 10 for 25,00",',
         "and `offer_from`/`offer_until` its dates when the store gives them.",
+        "A product in a mix offer has `mix`: `items` of the mix's products cost `price` together",
+        '(null when Bilka gives no price, e.g. "3 for 2").',
+        "To fill a mix, pass the product's `mix.mix_offer_id` as `mix_offer_id`: that lists every",
+        "product counting towards the mix at the store.",
         "Only products the store carries are returned; by default only those in stock.",
         "Results come a page at a time: the answer has `page`, `total_pages` and `total_results`;",
         "ask for the next `page` to see more.",
-        untrustedText("Product names, descriptions, category names and offer texts"),
+        untrustedText("Product names, descriptions, category names, offer texts and mix texts"),
       ].join(" "),
       inputSchema: z
         .object({
@@ -244,6 +250,15 @@ export function createServer(config: ServerConfig): McpServer {
               'Return only products in this category, e.g. "Mejeri & køl > Pålæg": a `category` ' +
                 "from list_categories or from a product.",
             ),
+          mix_offer_id: z
+            .string()
+            .trim()
+            .regex(MIX_OFFER_ID_PATTERN, "mix_offer_id is digits only")
+            .optional()
+            .describe(
+              "Return only the products that count towards this mix offer at the store: " +
+                'a product\'s `mix.mix_offer_id`, e.g. "2680".',
+            ),
         })
         // Without any of these, a search would page through the whole catalogue.
         .refine(
@@ -251,16 +266,26 @@ export function createServer(config: ServerConfig): McpServer {
             input.query !== undefined ||
             input.category !== undefined ||
             input.only_leaflet ||
-            input.only_offers,
+            input.only_offers ||
+            input.mix_offer_id !== undefined,
           {
             message:
-              "Give a query, or narrow the search with a category, only_leaflet: true or " +
-              "only_offers: true.",
+              "Give a query, or narrow the search with a category, only_leaflet: true, " +
+              "only_offers: true or mix_offer_id.",
           },
         ),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ query, limit, page, only_in_stock, only_offers, only_leaflet, category }) => {
+    async ({
+      query,
+      limit,
+      page,
+      only_in_stock,
+      only_offers,
+      only_leaflet,
+      category,
+      mix_offer_id,
+    }) => {
       const storeId = requireStoreId(await state.storeId());
       const found = await bilka.searchProducts({
         storeId,
@@ -270,6 +295,7 @@ export function createServer(config: ServerConfig): McpServer {
           onlyOffers: only_offers,
           onlyLeaflet: only_leaflet,
           category,
+          mixOfferId: mix_offer_id,
         },
         page,
         limit: Math.min(limit, limits.maxSearchResults),

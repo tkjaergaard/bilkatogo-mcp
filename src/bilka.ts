@@ -71,6 +71,9 @@ export const CATEGORY_PATH_PATTERN = new RegExp(
   "u",
 );
 
+/** A mix offer id: Algolia's `multipromos` value. Live ids run from 4 to 8 digits, so no length is fixed. */
+export const MIX_OFFER_ID_PATTERN = /^\d+$/;
+
 // Offer labels that say nothing; the price fields tell the story instead.
 const PLACEHOLDER_OFFER_LABELS = new Set(["", "se her"]);
 
@@ -110,6 +113,21 @@ export type Product = {
    * `category` for search_products and `parent` for list_categories.
    */
   category: string | null;
+  /**
+   * The mix offer the product counts towards at the store, e.g. "Mix 2 for
+   * 35,00"; its text is in `offer`. Null when there's none or no store was given.
+   */
+  mix: Mix | null;
+};
+
+/** A "buy N of these products for a set price" offer at one store. */
+export type Mix = {
+  /** Lists every product in the mix, as `search_products`' `mix_offer_id`. */
+  mix_offer_id: string;
+  /** How many items the mix takes, e.g. 2. Null when Bilka doesn't say. */
+  items: number | null;
+  /** What `items` cost together, in DKK. Null when Bilka gives no price, e.g. "3 for 2". */
+  price: number | null;
 };
 
 /** Everything useful the product index holds about one product. */
@@ -185,6 +203,8 @@ export type SearchFilters = {
   onlyLeaflet: boolean;
   /** A category path such as "Mejeri & køl > Pålæg", matching CATEGORY_PATH_PATTERN. */
   category?: string;
+  /** Only the products in this mix offer (all digits) that have the offer at the store. */
+  mixOfferId?: string;
 };
 
 /** Which products a category count includes. */
@@ -509,8 +529,19 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
 
   return {
     async searchProducts({ storeId, query, filters: wanted, page, limit }) {
-      const filters = productFilters(storeId, wanted);
+      const filters = productFilters(storeId, {
+        ...wanted,
+        // A mix id is the same in every store, but only some stores give the
+        // product the offer: keep the mix to products on offer at this store.
+        onlyOffers: wanted.onlyOffers || wanted.mixOfferId !== undefined,
+      });
       if (wanted.category !== undefined) filters.push(categoryFilter(wanted.category));
+      if (wanted.mixOfferId !== undefined) {
+        if (!MIX_OFFER_ID_PATTERN.test(wanted.mixOfferId)) {
+          throw new BilkaError(`Not a mix offer id: ${JSON.stringify(wanted.mixOfferId)}`);
+        }
+        filters.push(`multipromos:${wanted.mixOfferId}`);
+      }
       const data = await algolia("Product search", `/1/indexes/${ALGOLIA_PRODUCT_INDEX}/query`, {
         query,
         hitsPerPage: limit,
@@ -866,6 +897,8 @@ type AlgoliaProduct = {
   ageCode?: number;
   images?: string[];
   infos?: AlgoliaInfo[];
+  /** Ids of the mix offers the product is part of, e.g. ["2680"]. The same in every store. */
+  multipromos?: (number | string)[];
   storeData?: Record<string, AlgoliaStoreData | undefined>;
 };
 
@@ -880,6 +913,11 @@ type AlgoliaStoreData = {
   unitsOfMeasurePrice?: number;
   unitsOfMeasureShowPrice?: number;
   unitsOfMeasurePriceUnit?: string;
+  /** Items a mix offer takes, e.g. 2 for "Mix 2 for 35,00"; 0 otherwise. */
+  offerCount?: number;
+  /** What a mix's items cost together, in øre as a string ("3500"); "" when the mix has no price. */
+  multiPromoPrice?: string;
+  // Not read: `unitsOfMeasureOfferPrice` is filled even on products that aren't on offer.
 };
 
 const PRODUCT_ATTRIBUTES = [
@@ -895,6 +933,7 @@ const PRODUCT_ATTRIBUTES = [
   "isInCurrentLeaflet",
   "inStockStore",
   "deepestCategoryPath",
+  "multipromos",
 ];
 
 // One section of the product page. Item type 1 is free text (may hold HTML),
@@ -952,6 +991,27 @@ function toProduct(hit: AlgoliaProduct, storeId: string | undefined): Product {
     in_stock:
       storeId === undefined ? null : (store?.inStock ?? includesStore(hit.inStockStore, storeId)),
     category: hit.deepestCategoryPath || null,
+    mix: toMix(hit.multipromos, store, offerText),
+  };
+}
+
+/**
+ * A product is in a mix at the store when it has a mix id and the store gives
+ * it an offer text. With several ids the first is used (docs/research.md §3).
+ */
+function toMix(
+  mixIds: (number | string)[] | undefined,
+  store: AlgoliaStoreData | undefined,
+  offerText: string,
+): Mix | null {
+  const [mixId] = mixIds ?? [];
+  if (mixId === undefined || store === undefined || offerText === "") return null;
+  const items = store.offerCount;
+  const priceOre = Number(store.multiPromoPrice || Number.NaN);
+  return {
+    mix_offer_id: String(mixId),
+    items: typeof items === "number" && items >= 2 ? items : null,
+    price: Number.isFinite(priceOre) && priceOre > 0 ? kroner(priceOre) : null,
   };
 }
 

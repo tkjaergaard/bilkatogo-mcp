@@ -115,7 +115,19 @@ Live counts:
 
 **Search hits return only `objectID`** unless `attributesToRetrieve` names attributes, like the objects endpoint.
 
-**A mix id can be long.** The "3 for 2" mix above has `multipromos: ["11220188"]`, `offerCount: 3` and an empty `multiPromoPrice`, while "Mix 2 for 35,00" style mixes have short ids (e.g. "1679") and a price in øre.
+### Algolia: mix offers (checked live on 2026-11-02, public key, no login)
+
+A mix offer is "buy N of these products for a set price", e.g. "Mix 2 for 35,00". The website can't list the other products in a mix; the index can.
+
+- **Mix ids live on the record.** Each product carries `multipromos`, a list of mix ids, e.g. `["2680"]`. The filter `multipromos:<id>` returns every product in that mix. `search_products` sends it for `mix_offer_id`, after checking the id is all digits.
+- **The terms live in the store's data.** `storeData.<sid>` has `offerDescription` ("Mix 10 for 25,00"), `offerCount` (10, the items the mix takes) and `multiPromoPrice` ("2500": what those items cost together, in øre, as a string). It also has `multipromo`, the store's mix id as a single string ("2680", "" without a mix); in every record seen it equals `multipromos[0]`.
+- **Mix ids aren't per store; the offer text is.** Odense's offers (1654) hold 262 mix ids. A product can carry a mix id while a store gives it no offer text, so `search_products` with `mix_offer_id` also sends `isInOffer:<sid>`: only products on offer at the selected store are listed. The nine mix records checked (mixes 2680 and 11220188) had the same mix text in all 18 stores, so the "other store only" case in the tests is a hand-edited fixture (test/fixtures/README.md).
+- **Not every mix has a price.** The "3 for 2" mix `11220188` (Pizzadej 81452, Pølsehornsdej 81451, Fettuccine 185411 and Fuldkornspølsehornsdej 134103 at store 1653) has `offerCount: 3` and an empty `multiPromoPrice`. "Mix N for N,NN" mixes have a price, e.g. `2680` (Bananer, Pærer, Æbler, Kiwi, Blommer: "Mix 10 for 25,00", `multiPromoPrice` "2500").
+- **A mix id can be long**: 4 digits ("2680", "1679") or 8 ("11220188"), so `mix_offer_id` takes any all-digit id.
+- **The product's `mix` block** is `{ mix_offer_id, items, price }` when the product has a mix id and the store gives it an offer text. `price` (DKK, for all `items` together) is null when `multiPromoPrice` is empty or not positive; `items` is null when `offerCount` is below 2. With several mix ids, the first is used.
+- Mix offers have `beforePrice` 0, so there's no saving to compute.
+- **`storeData.<sid>.unitsOfMeasureOfferPrice` is unreliable**: it's filled even on products not on offer (Dumle Original had 140.00 kr without an offer). It's never read.
+- **Open question:** whether one product can carry several mix ids in one store. No live record with more than one id has been seen; the store's `multipromo` field holds a single id, which suggests one mix per product per store.
 
 ### Algolia: the category tree (checked live on 2026-11-02, public key, no login)
 
@@ -166,4 +178,4 @@ Compared with stigvoss/bilkatogo-mcp, and with nemlig-mcp as the model:
 - **Login.** Gigya might add CAPTCHA or bot protection to `accounts.login`. Keep the fallback of pasting a browser token.
 - **Checkout stays out**, as nemlig-mcp decided: a person always places the order on the website.
 - **Prompt injection.** Product names are untrusted text and should be labelled as such in tool descriptions.
-- **Still unknown:** Bilka's answer to an unknown order id, an unknown product in `ChangeLineCount`, a slot it doesn't offer in `SetDeliveryDate`, and a refused `SetDeliveryAddress`; whether switching to another store's place drops cart lines that store doesn't carry; whether an account can hold more than one home address (the server numbers them "home", "home-2", …, but `get_cart` calls any of them "home"); and what `stat.promo` means.
+- **Still unknown:** Bilka's answer to an unknown order id, an unknown product in `ChangeLineCount`, a slot it doesn't offer in `SetDeliveryDate`, and a refused `SetDeliveryAddress`; whether switching to another store's place drops cart lines that store doesn't carry; whether an account can hold more than one home address (the server numbers them "home", "home-2", …, but `get_cart` calls any of them "home"); what `stat.promo` means; and whether a product can carry several mix ids in one store (see "Algolia: mix offers").
