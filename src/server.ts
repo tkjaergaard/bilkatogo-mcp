@@ -256,18 +256,7 @@ export function createServer(config: ServerConfig): McpServer {
             .describe(
               "`relevance` (Bilka's ranking), `price` or `unit_price`: cheapest first at the store.",
             ),
-          only_in_stock: z
-            .boolean()
-            .default(true)
-            .describe("Leave out products that are out of stock at the store."),
-          only_offers: z
-            .boolean()
-            .default(false)
-            .describe("Return only products on offer at the store."),
-          only_leaflet: z
-            .boolean()
-            .default(false)
-            .describe("Return only products in this week's Bilka Avisen (the leaflet)."),
+          ...productFilterFlags,
           category: categorySchema
             .optional()
             .describe(
@@ -382,18 +371,7 @@ export function createServer(config: ServerConfig): McpServer {
             'List the categories directly under this one, e.g. "Mejeri & køl". ' +
               "Leave it out for the top level.",
           ),
-        only_in_stock: z
-          .boolean()
-          .default(true)
-          .describe("Count only products in stock at the store."),
-        only_offers: z
-          .boolean()
-          .default(false)
-          .describe("Count only products on offer at the store."),
-        only_leaflet: z
-          .boolean()
-          .default(false)
-          .describe("Count only products in this week's Bilka Avisen (the leaflet)."),
+        ...productFilterFlags,
       }),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -937,6 +915,20 @@ const categorySchema = z
       `product's category: up to ${MAX_CATEGORY_LEVELS} names joined by " > ", ` +
       "without double quotes or backslashes.",
   );
+
+// The product filters search_products and list_categories share: which
+// products a search returns, and which a category count includes.
+const productFilterFlags = {
+  only_in_stock: z.boolean().default(true).describe("Only products in stock at the store."),
+  only_offers: z
+    .boolean()
+    .default(false)
+    .describe("Only products on offer at the store, everyday price labels included."),
+  only_leaflet: z
+    .boolean()
+    .default(false)
+    .describe("Only products in this week's Bilka Avisen (the leaflet)."),
+};
 
 // A product id, as search results, the cart and orders give it.
 const productIdSchema = z
