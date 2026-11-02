@@ -5,6 +5,28 @@
 
 import { loadFixture } from "./fake-bilka.ts";
 
+/**
+ * The captured cart's `delivery`, worked by hand from shop-cart.json: home
+ * delivery from store 1654 with a 500 kr. minimum, and a past slot Bilka
+ * marks closed.
+ */
+export const CAPTURED_DELIVERY = {
+  place: {
+    place_id: "home",
+    kind: "home_delivery",
+    name: null,
+    store_id: "1654",
+    minimum_order: 500,
+  },
+  slot: {
+    date: "2026-07-27",
+    start: "18:00",
+    end: "22:00",
+    text: "Man. 27/07. kl. 18:00 - 22:00",
+    available: false,
+  },
+};
+
 /** A grocery order line from the captured order, with a new quantity and an optional customer note. */
 function groceryLine(productId: number, quantity: number, comment = ""): Record<string, any> {
   const order = loadFixture("shop-order-details.json").order;

@@ -336,8 +336,10 @@ export function createServer(config: ServerConfig): McpServer {
         "Read the cart on the user's BilkaToGo account. Prices are in DKK.",
         "By default a compact summary: each line's product id, name, quantity, unit price and",
         "line total, plus the cart total, the number of grocery items and the service fees.",
-        "Set `full` for brand, size, aisle and availability per line, the delivery slot and",
-        "how far the cart is from Bilka's minimum order.",
+        "`delivery` is where and when: the place (home delivery or a pickup place, its store",
+        "and minimum order) and the chosen slot, with `available` false when the place doesn't",
+        "offer it. Set `full` for brand, size, aisle and availability per line and how far the",
+        "cart is from Bilka's minimum order.",
         "Personal data (name, address, door code, delivery notes) is replaced with a marker.",
         "Needs a BilkaToGo login. Reading the cart changes nothing.",
         untrustedText("Product names and other cart text"),
@@ -353,6 +355,199 @@ export function createServer(config: ServerConfig): McpServer {
     async ({ full }) => {
       const cart = await bilka.getCart();
       return jsonResult(full ? cart : summariseCart(cart));
+    },
+  );
+
+  server.registerTool(
+    "list_delivery_places",
+    {
+      title: "List BilkaToGo delivery and pickup places",
+      description: [
+        "List where the user's BilkaToGo cart can go: home delivery to the account's address,",
+        "pickup in a Bilka store, and standalone pickup points. Each place has its `place_id`,",
+        "`kind`, the `store_id` that packs the order (prices and stock follow it) and its",
+        "`minimum_order` in DKK. `current_place_id` is the cart's place now.",
+        "Delivery slots differ per place: home delivery may be sold out when pickup isn't.",
+        "To compare, suggest a place to the user and, once they agree, call set_delivery_place",
+        'and then list_delivery_slots. Home delivery\'s place id is "home"; the address',
+        "itself is never shown (name is null).",
+        "Needs a BilkaToGo login. Reading changes nothing.",
+        untrustedText("Store and pickup-point names"),
+      ].join(" "),
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async () => {
+      const { currentPlaceId, places } = await bilka.getDeliveryPlaces();
+      return jsonResult({ current_place_id: currentPlaceId, places });
+    },
+  );
+
+  server.registerTool(
+    "set_delivery_place",
+    {
+      title: "Change the BilkaToGo delivery place",
+      description: [
+        "Switch the user's BilkaToGo cart to another delivery or pickup place from",
+        "list_delivery_places, e.g. from home delivery to pickup in a Bilka store.",
+        "Only switch when the user asked for it or agreed to it: it changes the cart's fees,",
+        "its minimum order and, when the place belongs to another store, the store whose",
+        "prices and stock apply. search_products then uses the cart's store (`search_store_id`).",
+        "Bilka keeps the cart's slot, but the new place may not offer it: when",
+        "`cart.delivery.slot.available` is false, call list_delivery_slots and set_delivery_slot.",
+        "Returns the place, whether anything changed, and the cart summary afterwards.",
+        "Needs a BilkaToGo login. Ordering and payment stay on the website.",
+        untrustedText("Store and pickup-point names and other cart text"),
+      ].join(" "),
+      inputSchema: z.object({
+        place_id: z
+          .string()
+          .trim()
+          .regex(
+            /^(?:\d{1,12}|home(?:-\d{1,2})?)$/,
+            'A place id is "home" or a number such as 21046, from list_delivery_places.',
+          )
+          .describe('The place id from list_delivery_places: "home", or e.g. "21046".'),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ place_id }) => {
+      const outcome = await bilka.setDeliveryPlace(place_id);
+      if (outcome === null) {
+        throw new Error(
+          `Place ${place_id} isn't one of this account's delivery places. ` +
+            "Use list_delivery_places to see them.",
+        );
+      }
+      const { place, changed, previousStoreId } = outcome;
+      const storeChanged = place.store_id !== "" && place.store_id !== previousStoreId;
+      // Search follows the cart's store, unless the server was started with a fixed one.
+      if (place.store_id !== "" && validStoreId(await state.storeId()) !== place.store_id) {
+        await state.select(place.store_id);
+      }
+      const searchStoreId = validStoreId(await state.storeId());
+      const cart = summariseCart(await bilka.getCart());
+      const notes: string[] = [];
+      if (!changed) notes.push("The cart was already at this place; nothing changed.");
+      if (storeChanged) {
+        notes.push(
+          `The cart is now packed by store ${place.store_id}; prices and stock may differ ` +
+            "from before.",
+        );
+      }
+      if (searchStoreId !== place.store_id) {
+        notes.push(
+          `search_products still uses store ${searchStoreId ?? "(none)"}, which this server ` +
+            "was started with, so its prices may differ from the cart's.",
+        );
+      }
+      if (cart.delivery.slot?.available === false) {
+        notes.push(
+          "The cart's slot isn't offered at this place. Call list_delivery_slots and " +
+            "set_delivery_slot to choose one.",
+        );
+      }
+      return jsonResult({
+        place,
+        changed,
+        store_changed: storeChanged,
+        search_store_id: searchStoreId,
+        notes,
+        cart,
+      });
+    },
+  );
+
+  server.registerTool(
+    "list_delivery_slots",
+    {
+      title: "List BilkaToGo delivery slots",
+      description: [
+        "List the delivery or pickup slots for the next two weeks at the cart's current place",
+        "(see get_cart's `delivery.place`, or list_delivery_places). Each day has a `status`:",
+        "available, sold_out, order_deadline_passed, not_open_yet or unavailable, and its slots",
+        "with start and end time, their own status, the order deadline and Bilka's notes.",
+        "`chosen_slot` is the slot set on the cart now. Choosing a slot reserves nothing:",
+        "it can still fill up before the order is placed.",
+        "Other places have other slots; to see them, the cart has to switch place first",
+        "(set_delivery_place), which only happens with the user's agreement.",
+        "Needs a BilkaToGo login. Reading changes nothing.",
+        untrustedText("Bilka's notes, deadlines and other slot text"),
+      ].join(" "),
+      inputSchema: z.object({
+        only_available: z
+          .boolean()
+          .default(false)
+          .describe("Leave out days and slots that can't be chosen."),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ only_available }) => {
+      const slots = await bilka.getDeliverySlots();
+      if (!only_available) return jsonResult(slots);
+      const days = slots.days
+        .map((day) => ({ ...day, slots: day.slots.filter((s) => s.status === "available") }))
+        .filter((day) => day.slots.length > 0);
+      return jsonResult({ ...slots, days });
+    },
+  );
+
+  server.registerTool(
+    "set_delivery_slot",
+    {
+      title: "Choose the BilkaToGo delivery slot",
+      description: [
+        "Set the delivery or pickup slot on the user's BilkaToGo cart, at the cart's current",
+        "place. Give the date and start time of an available slot from list_delivery_slots.",
+        "Only choose a slot the user asked for or agreed to. It reserves nothing: the slot",
+        "can still fill up before the order is placed. Ordering and payment stay on the",
+        "website. Needs a BilkaToGo login.",
+        untrustedText("Bilka's slot text"),
+      ].join(" "),
+      inputSchema: z.object({
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "A date looks like 2026-11-03.")
+          .describe('The day, as list_delivery_slots gives it, e.g. "2026-11-03".'),
+        start_time: z
+          .string()
+          .regex(/^\d{2}:\d{2}$/, "A start time looks like 08:00.")
+          .describe('The slot\'s start time, as list_delivery_slots gives it, e.g. "08:00".'),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ date, start_time }) => {
+      const { days } = await bilka.getDeliverySlots();
+      const day = days.find((d) => d.date === date);
+      const slot = day?.slots.find((s) => s.start === start_time);
+      if (day === undefined || slot === undefined || slot.status !== "available") {
+        const open = (day?.slots ?? []).filter((s) => s.status === "available");
+        const why =
+          slot !== undefined
+            ? `is ${slot.status.replaceAll("_", " ")}`
+            : day === undefined
+              ? "isn't a day Bilka offers at this place"
+              : "isn't a slot Bilka offers that day at this place";
+        throw new Error(
+          `The slot ${date} ${start_time} ${why}. ` +
+            (open.length > 0
+              ? `Available that day: ${open.map((s) => `${s.start}-${s.end}`).join(", ")}. `
+              : "") +
+            "Use list_delivery_slots to see the available slots.",
+        );
+      }
+      const change = await bilka.setDeliverySlot({ date, start: slot.start, end: slot.end });
+      return jsonResult(change);
     },
   );
 

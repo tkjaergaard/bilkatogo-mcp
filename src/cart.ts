@@ -2,7 +2,9 @@
 // DKK instead of øre, clear field names, service fees apart from groceries.
 // Its input has already been through the privacy scrub.
 
+import { type DeliveryPlace, toPlace } from "./delivery.ts";
 import { kroner } from "./money.ts";
+import { REDACTED } from "./scrub.ts";
 
 export type CartLine = {
   product_id: string;
@@ -25,6 +27,22 @@ export type CartLine = {
 
 export type CartFee = { name: string; amount: number | null };
 
+/** Where and when the cart's order would be delivered or picked up. */
+export type CartDelivery = {
+  /** The cart's delivery place, or null when Bilka didn't say. */
+  place: DeliveryPlace | null;
+  /** The slot set on the cart, or null when none is. */
+  slot: {
+    date: string;
+    start: string;
+    end: string;
+    /** e.g. "Søn. 08/11. Senest kl. 06:00". */
+    text: string | null;
+    /** False when the place doesn't offer this slot (any more), so another must be chosen. */
+    available: boolean;
+  } | null;
+};
+
 /** The whole cart. `summariseCart` picks the compact form from it. */
 export type Cart = {
   currency: "DKK";
@@ -35,19 +53,23 @@ export type Cart = {
   lines: CartLine[];
   /** Service lines such as "Pakkeservice" and "Leveringsgebyr". */
   fees: CartFee[];
+  delivery: CartDelivery;
   /** e.g. "Man. 27/07. kl. 18:00 - 22:00". */
   delivery_slot: string | null;
   /** How much more to buy before the order reaches Bilka's minimum, in DKK. */
   minimum_left: number | null;
   /** Bilka's note on the minimum, e.g. "422,00 kr. fra minimumskøb på 500,00 kr. …". */
   minimum_left_text: string | null;
-  /** The delivery address. Always a privacy marker when set. */
+  /**
+   * The pickup place's name, or for home delivery the privacy marker: the
+   * customer's address never reaches the model.
+   */
   delivery_address: unknown;
   /** Door code, delivery and access notes. Always a privacy marker when set. */
   delivery_notes: unknown;
 };
 
-export type CartSummary = Pick<Cart, "currency" | "total" | "item_count" | "fees"> & {
+export type CartSummary = Pick<Cart, "currency" | "total" | "item_count" | "fees" | "delivery"> & {
   lines: Pick<CartLine, "product_id" | "name" | "quantity" | "unit_price" | "line_total">[];
 };
 
@@ -63,7 +85,13 @@ type ShopCart = {
   };
   lines?: ShopLineGroup[];
   deliveryAddress?: unknown;
-  deliveryDate?: { delivery_message?: string } | null;
+  deliveryDate?: {
+    deliveryDate?: string;
+    intervalStart?: string;
+    intervalEnd?: string;
+    closed?: number;
+    delivery_message?: string;
+  } | null;
 };
 
 /** The line groups of a cart or order (`lines[].lines[].orderlines[]`). */
@@ -89,16 +117,18 @@ export type ShopOrderLine = {
 export function toCart(data: unknown): Cart {
   const cart = (data ?? {}) as ShopCart;
   const { items: lines, fees } = splitLines(cart.lines, (line) => line);
+  const place = toPlace(cart.deliveryAddress);
   return {
     currency: "DKK",
     total: kroner(cart.stat?.price),
     item_count: lines.reduce((count, line) => count + line.quantity, 0),
     lines,
     fees,
+    delivery: { place, slot: toSlot(cart.deliveryDate) },
     delivery_slot: cart.deliveryDate?.delivery_message?.trim() || null,
     minimum_left: kroner(cart.stat?.minimum_left),
     minimum_left_text: plain(cart.stat?.minimum_left_text),
-    delivery_address: cart.deliveryAddress ?? null,
+    delivery_address: place?.name ?? (cart.deliveryAddress ? REDACTED : null),
     delivery_notes: cart.stat?.delivery_comment ?? null,
   };
 }
@@ -116,6 +146,18 @@ export function summariseCart(cart: Cart): CartSummary {
       line_total,
     })),
     fees: cart.fees,
+    delivery: cart.delivery,
+  };
+}
+
+function toSlot(date: ShopCart["deliveryDate"]): CartDelivery["slot"] {
+  if (!date?.deliveryDate || !date.intervalStart || !date.intervalEnd) return null;
+  return {
+    date: date.deliveryDate,
+    start: date.intervalStart,
+    end: date.intervalEnd,
+    text: date.delivery_message?.trim() || null,
+    available: date.closed === 0,
   };
 }
 

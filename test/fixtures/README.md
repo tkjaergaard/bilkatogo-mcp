@@ -14,6 +14,12 @@ Small JSON files shaped like real Bilka responses. The fake Bilka (`test/support
 | `shop-change-line-count.json` / `shop-change-line-count-zero.json` | `shop/v6/ChangeLineCount` setting product 156353 to 1, then to 0. | Captured and scrubbed, as above. |
 | `shop-order-history.json` | `shop/v7/OrderHistory`, trimmed to two orders: one home delivery and one pickup. | Captured and scrubbed, as above. |
 | `shop-order-details.json` | `shop/v7/OrderDetails` for the first order in the history, trimmed to the first three line groups with at most two lines each. | Captured and scrubbed, as above. |
+| `shop-not-logged-in.json` | The shop's answer without a JWT (`shop/v3/AvailableDeliveryDates`). The fake answers every unauthenticated shop call with it. | Captured live on 2026-11-02 without logging in. No personal data. |
+| `shop-delivery-places.json` | `shop/v6/AvailableDeliveryAddresses?orderByZipcode=`, logged in: the account's home address (the fake one from `shop-cart.json`, id 999001) and three public places (Bilka Waves 3192, Bilka Odense 21046, PickUp Skejby 142728) of 23. | Captured in the delivery round trip on 2026-11-02 (see `docs/research.md` §3), then scrubbed: the home entry replaced, and `recipient_name`, `dawa_uid` and `temporary_zipcode` (the customer's zip, present on every entry) faked on the public ones. |
+| `shop-delivery-dates.json` | `shop/v3/AvailableDeliveryDates` at home delivery in Odense: 14 days, one night slot a day, including a sold-out day and today's slot past its deadline. | Captured and scrubbed (account ids only). |
+| `shop-delivery-dates-pickup.json` | The same at the Bilka Odense pickup: two-hour slots, with the warning that the cart's chosen slot isn't offered there. Trimmed to 4 of 14 days. | Captured and scrubbed, as above. |
+| `shop-set-delivery-address.json` / `shop-set-delivery-address-home.json` | `shop/v6/SetDeliveryAddress` switching to the Bilka Odense pickup, and back home. | Captured and scrubbed: the home place replaced as above, the delivery notes faked. |
+| `shop-set-delivery-date.json` | `shop/v3/SetDeliveryDate`, setting the slot the cart already had. | Captured and scrubbed: the delivery notes faked. |
 
 Covered cases in `algolia-products.json`, store 1653: a plain product (19753), a "Skarp pris" discount with no `beforePrice` (128298), a "Mix 10 for 25,00" multibuy (18381), out of stock (140787) and a "Spar 4,95" discount with `beforePrice` that is out of stock (169794).
 
@@ -31,11 +37,11 @@ nickknissen/bilkatogo is MIT licensed:
 
 ## Scrubbed account fixtures
 
-The `gigya-*` and `shop-*` files come from one live capture of the developer's account. Every personal value was replaced with an obvious fake before committing, so tests can check the privacy scrub against them:
+The `gigya-*` and `shop-*` files come from live captures of the developer's account. Every personal value was replaced with an obvious fake before committing, so tests can check the privacy scrub against them:
 
 - names `Test Testesen`, address `Testvej 1, 1. tv`, `0000 Testby`, coordinates `55.0000000, 10.0000000`
 - door code `FAKE-DOORCODE-1234`, pickup code `FAKE-PICKUP-9876`, delivery notes starting `FAKE-NOTE:`, access text `FAKE-ACCESS:`
-- account and session ids (`uid` 1000001, `eid` 2000001, `tid`, Gigya `UID`, signatures) and order ids (`900000000001` …), kept consistent across files
+- account and session ids (`uid` 1000001, `eid` 2000001, `tid`, Gigya `UID`, signatures) and order ids (`900000000001` …), kept consistent across files. The delivery fixtures keep Bilka's real `eid` values (-1, -2), which turned out to be error ids, and use `tid` `00000000-0000-4000-8000-000000000001`
 - the login token, JWT and payment provider id as `test-…` strings; Gigya account dates as 2026-01-01
 
 A script checked that none of the real personal values from the capture appear anywhere in these files. The developer then reviewed them by hand.

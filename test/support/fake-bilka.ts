@@ -133,6 +133,20 @@ export class FakeBilka {
   cart: Record<string, any> = loadFixture("shop-cart.json");
   /** The account's past orders, newest first, as `shop/v7/OrderHistory` lists them. */
   orders: Record<string, any>[] = loadFixture("shop-order-history.json").orders;
+  /**
+   * The logged-in place list (`shop-delivery-places.json`): the account's home
+   * (999001, the cart's place) and three public places. Its `activeAddress` is
+   * always the cart's `deliveryAddress`.
+   */
+  places: Record<string, any>[] = loadFixture("shop-delivery-places.json").addresses;
+  /**
+   * `shop/v3/AvailableDeliveryDates` answers, by place id. Home delivery has
+   * one night slot a day; every other place answers with the Bilka Odense
+   * pickup capture's two-hour slots.
+   */
+  slotsByPlace: Record<string, Record<string, any>> = {
+    "999001": loadFixture("shop-delivery-dates.json"),
+  };
   /** `shop/v7/OrderDetails` answers, by order id. */
   orderDetails: Record<string, Record<string, any>> = {
     "900000000001": loadFixture("shop-order-details.json").order,
@@ -208,8 +222,7 @@ export class FakeBilka {
 
   /**
    * Answer shop calls as Bilka does when the JWT is missing, expired or
-   * rejected. Unverified shape (see NOT_LOGGED_IN); confirm against a
-   * captured response.
+   * rejected (`shop-not-logged-in.json`, captured without a JWT).
    */
   rejectJwt(times = Number.POSITIVE_INFINITY): this {
     return this.script("shop.*", () => jsonResponse(NOT_LOGGED_IN), times);
@@ -245,10 +258,16 @@ export class FakeBilka {
   private readonly defaultHandlers: Partial<Record<RouteName, Responder>> = {
     "algolia.query": (request) => this.algoliaQuery(request),
     "algolia.objects": (request) => this.algoliaObjects(request),
-    "shop.AvailableDeliveryAddresses": (request) =>
-      request.method === "GET"
-        ? jsonResponse(this.deliveryAddresses)
-        : jsonResponse({ message: "Method not allowed" }, 405),
+    "shop.AvailableDeliveryAddresses": (request) => {
+      if (request.method !== "GET") return jsonResponse({ message: "Method not allowed" }, 405);
+      // Anonymous: the public list. Logged in: the account's own place list.
+      if (!request.headers.has("jwt_token")) return jsonResponse(this.deliveryAddresses);
+      return this.requireJwt(request) ?? this.placeList();
+    },
+    "shop.SetDeliveryAddress": (request) => this.requireJwt(request) ?? this.setPlace(request),
+    "shop.AvailableDeliveryDates": (request) =>
+      this.requireJwt(request) ?? jsonResponse(this.slotAnswer()),
+    "shop.SetDeliveryDate": (request) => this.requireJwt(request) ?? this.setSlot(request),
     "gigya.login": (request) => this.gigyaLogin(request),
     "gigya.getJWT": (request) => this.gigyaGetJwt(request),
     "shop.Cart": (request) =>
@@ -339,6 +358,133 @@ export class FakeBilka {
       productId,
       productAmount: count,
       productUnitPrice: count > 0 ? (orderline?.unitprice ?? 0) : 0,
+    });
+  }
+
+  /** The logged-in place list, its `activeAddress` the cart's place. */
+  private placeList(): Response {
+    return jsonResponse({
+      ...loadFixture<object>("shop-delivery-places.json"),
+      activeAddress: structuredClone(this.cart.deliveryAddress),
+      addresses: structuredClone(this.places),
+    });
+  }
+
+  /**
+   * `shop/v6/SetDeliveryAddress`, as the website calls it: `id` and `zipcode`
+   * for a store or pickup point, `dawa_uid` and `street` for the home address.
+   * Moves the cart there like the live round trip did: the home delivery fee
+   * (`Leveringsgebyr`) and minimum order only apply at home, and the chosen
+   * slot stays but is marked closed when the place doesn't offer it. An
+   * unmatched request answers with an error and changes nothing (unverified shape).
+   */
+  private setPlace(request: RecordedRequest): Response {
+    const query = request.url.searchParams;
+    const place = this.places.find((p) =>
+      p.facility === 8
+        ? query.get("dawa_uid") === p.dawa_uid && query.get("street") === p.street
+        : query.get("id") === String(p.id) && query.get("zipcode") === String(p.zip),
+    );
+    if (place === undefined) {
+      return jsonResponse({ msg: "Adressen kunne ikke findes", eid: 5, uid: 1000001 });
+    }
+    const home = place.facility === 8;
+    this.cart.deliveryAddress = structuredClone(place);
+    const services = this.cart.lines.find((g: any) => g.headline === "Services");
+    const fee = loadFixture("shop-cart.json")
+      .lines.find((g: any) => g.headline === "Services")
+      .lines.find((l: any) => l.orderlines[0].product.objectID === 119085);
+    services.lines = services.lines.filter((l: any) => l.orderlines[0].product.objectID !== 119085);
+    if (home) services.lines.push(structuredClone(fee));
+    const total = (g: any[]) =>
+      g.flatMap((x) => x.lines.flatMap((l: any) => l.orderlines)).reduce((n, o) => n + o.amount, 0);
+    this.cart.stat.price = total(this.cart.lines);
+    this.cart.stat.delivery_price = home ? 3900 : 0;
+    this.cart.stat.minimum_left = home ? Math.max(0, place.minimum_buy - this.cart.stat.price) : 0;
+    this.cart.deliveryDate.closed = this.offers(this.cart.deliveryDate) ? 0 : 1;
+    const answer = loadFixture<Record<string, any>>(
+      home ? "shop-set-delivery-address-home.json" : "shop-set-delivery-address.json",
+    );
+    return jsonResponse({ ...answer, activeAddress: structuredClone(place) });
+  }
+
+  /** The slot answer for the cart's place, with the cart's chosen slot, as live. */
+  private slotAnswer(): Record<string, any> {
+    const placeId = String(this.cart.deliveryAddress?.id);
+    const answer = structuredClone(
+      this.slotsByPlace[placeId] ?? loadFixture("shop-delivery-dates-pickup.json"),
+    );
+    const chosen = this.cart.deliveryDate ?? {};
+    answer.deliveryDate = chosen.deliveryDate;
+    answer.intervalStart = chosen.intervalStart;
+    answer.intervalEnd = chosen.intervalEnd;
+    delete answer.msg;
+    answer.eid = -1;
+    if (!this.offers(chosen, answer)) {
+      answer.msg =
+        "Det valgte udleveringstidspunkt er desværre ikke tilgængelig på det valgte udleveringssted.";
+      answer.eid = -2;
+    }
+    return answer;
+  }
+
+  /** Whether the cart's place offers `slot` as a bookable slot. */
+  private offers(
+    slot: { deliveryDate?: string; intervalStart?: string },
+    answer = this.slotAnswerFor(String(this.cart.deliveryAddress?.id)),
+  ): boolean {
+    const day = answer.availableIntervals.find((d: any) => d.date === slot.deliveryDate);
+    return (day?.intervals ?? []).some(
+      (i: any) => i.intervalStart === slot.intervalStart && i.closed === 0,
+    );
+  }
+
+  private slotAnswerFor(placeId: string): Record<string, any> {
+    return this.slotsByPlace[placeId] ?? loadFixture("shop-delivery-dates-pickup.json");
+  }
+
+  /**
+   * `shop/v3/SetDeliveryDate`: sets the cart's slot when the place offers it,
+   * answering like the capture. Otherwise the slot stays and the answer says
+   * so (unverified shape: the server checks the slot first).
+   */
+  private setSlot(request: RecordedRequest): Response {
+    const query = request.url.searchParams;
+    const wanted = {
+      deliveryDate: query.get("deliveryDate") ?? "",
+      intervalStart: query.get("intervalStart") ?? "",
+      intervalEnd: query.get("intervalEnd") ?? "",
+    };
+    const answer = loadFixture<Record<string, any>>("shop-set-delivery-date.json");
+    if (this.offers(wanted)) {
+      const day = new Date(`${wanted.deliveryDate}T12:00:00Z`);
+      const weekday = ["Søn", "Man", "Tir", "Ons", "Tor", "Fre", "Lør"][day.getUTCDay()]!;
+      const [, mm, dd] = wanted.deliveryDate.split("-");
+      const when =
+        wanted.intervalStart === "00:00"
+          ? `Senest kl. ${wanted.intervalEnd}`
+          : `kl. ${wanted.intervalStart} - ${wanted.intervalEnd}`;
+      Object.assign(this.cart.deliveryDate, {
+        ...wanted,
+        displayDeliveryDate: wanted.deliveryDate,
+        deliveryDay: weekday,
+        closed: 0,
+        delivery_message: `${weekday}. ${dd}/${mm}. ${when}`,
+      });
+    } else {
+      answer.msg = "Det valgte tidspunkt er ikke tilgængeligt";
+    }
+    const { deliveryDate, displayDeliveryDate, deliveryDay, intervalStart, intervalEnd } =
+      this.cart.deliveryDate;
+    return jsonResponse({
+      ...answer,
+      deliveryDate,
+      displayDeliveryDate,
+      deliveryDay,
+      intervalStart,
+      intervalEnd,
+      closed: this.cart.deliveryDate.closed,
+      delivery_message: this.cart.deliveryDate.delivery_message,
     });
   }
 
@@ -458,11 +604,8 @@ export class FakeBilka {
   }
 }
 
-/**
- * The shop's answer without a valid JWT. Unverified shape: `code` and `msg`
- * from nickknissen/bilkatogo, `uid: -1` from stigvoss/bilkatogo-mcp.
- */
-const NOT_LOGGED_IN = { code: 1, msg: "Du er ikke logget ind", uid: -1 };
+/** The shop's answer without a valid JWT, captured live (`shop-not-logged-in.json`). */
+const NOT_LOGGED_IN = loadFixture("shop-not-logged-in.json");
 
 function checkAlgoliaKey(request: RecordedRequest): Response | undefined {
   if (

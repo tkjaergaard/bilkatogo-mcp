@@ -1,0 +1,173 @@
+{
+  "displayDeliveryDate": "2026-11-08",
+  "deliveryDate": "2026-11-08",
+  "deliveryDay": "Søn",
+  "intervalStart": "00:00",
+  "intervalEnd": "06:00",
+  "closed": 0,
+  "customer_chosen_pickupzone": "1",
+  "message": "",
+  "order_id": "",
+  "delivery_message": "Søn. 08/11. Senest kl. 06:00",
+  "stat": {
+    "amount": 2,
+    "diff": 2,
+    "price": 7800,
+    "price_vat": 1560,
+    "serv_amount": 0,
+    "serv_diff": 0,
+    "serv_price": 0,
+    "prod_amount": 0,
+    "prod_amount_no_deposits": 0,
+    "prod_diff": 0,
+    "prod_price": 0,
+    "ageCode": 0,
+    "verified_ageCode": 999,
+    "promo": 0,
+    "oos": false,
+    "has_replacements": false,
+    "blockedByHoliday": false,
+    "deposit": 0,
+    "deposit_amount": 0,
+    "deposit_diff": 0,
+    "delivery_price": 3900,
+    "is_member": 0,
+    "membership_offer_discount": 0,
+    "personalized_offer_discount": 0,
+    "packing": 3900,
+    "packaging_price": 0,
+    "price_no_promo": 0,
+    "subtotal_no_promo": 3900,
+    "uncollected_fee": null,
+    "global_discounts": [],
+    "vouchers": [],
+    "minimum_left": 42200,
+    "minimum_left_text": "<strong>422,00 kr.</strong> fra minimumskøb på 500,00 kr. alt inkl. for at få hjemmelevering",
+    "delivery_comment": {
+      "id": 10,
+      "comment": "",
+      "delivery_text": "FAKE-NOTE: levering ved hoveddør",
+      "access_required": false,
+      "doorcode": "",
+      "access_choice": "FAKE-ACCESS: ring på",
+      "selectable": true
+    },
+    "specifications": [
+      {
+        "text": "Pakkeservice",
+        "value": 3900
+      },
+      {
+        "text": "Emballage",
+        "value": 0
+      },
+      {
+        "text": "Leveringsgebyr",
+        "value": 3900
+      }
+    ]
+  },
+  "lines": [
+    {
+      "headline": "Services",
+      "lines": [
+        {
+          "pc": "Services",
+          "amount": "1",
+          "price": 3900,
+          "product": {
+            "id": "81474",
+            "name": "Pakkeservice",
+            "producer": "Sallinggroup",
+            "price": "3900",
+            "multipromo": "",
+            "locked": 1,
+            "img": "/images/productimages/bilkatogo.dk/80_80/no_product.jpg",
+            "at": 0,
+            "msg": "",
+            "oos": 0,
+            "blockedByHoliday": 0,
+            "gtin": "5712872794790",
+            "code": "87418611",
+            "auom": "87418611-EA",
+            "brand": "",
+            "categories": {
+              "lvl0": "Services",
+              "lvl1": "Services > ThomBerg Levering",
+              "lvl2": []
+            },
+            "damGuid": "",
+            "images": [],
+            "ageCode": 0,
+            "units": 0,
+            "uom": "",
+            "uomprice": "",
+            "marks": {
+              "environment": 0,
+              "health": 0,
+              "free": 0,
+              "price": 0
+            },
+            "fav": 0,
+            "deposits": []
+          },
+          "comment": "",
+          "membership_offer_discount": 0,
+          "personalized_offer_discount": 0
+        },
+        {
+          "pc": "Services",
+          "amount": "1",
+          "price": 3900,
+          "product": {
+            "id": "119085",
+            "name": "Leveringsgebyr",
+            "producer": "Salling Group",
+            "price": "3900",
+            "multipromo": "",
+            "locked": 1,
+            "img": "/images/productimages/bilkatogo.dk/80_80/no_product.jpg",
+            "at": 0,
+            "msg": "",
+            "oos": 0,
+            "blockedByHoliday": 0,
+            "gtin": "5712876288585",
+            "code": "906540",
+            "auom": "906540-EA",
+            "brand": "",
+            "categories": {
+              "lvl0": "Services",
+              "lvl1": "Services > ThomBerg Levering",
+              "lvl2": []
+            },
+            "damGuid": "",
+            "images": [],
+            "ageCode": 0,
+            "units": 0,
+            "uom": "",
+            "uomprice": "",
+            "marks": {
+              "environment": 0,
+              "health": 0,
+              "free": 0,
+              "price": 0
+            },
+            "fav": 0,
+            "deposits": []
+          },
+          "comment": "",
+          "membership_offer_discount": 0,
+          "personalized_offer_discount": 0
+        }
+      ]
+    }
+  ],
+  "replacesettings": 1,
+  "ageRestrictionEnabled": true,
+  "hd_available": true,
+  "blockbit": 7,
+  "eid": -1,
+  "uid": 1000001,
+  "tid": "00000000-0000-4000-8000-000000000001",
+  "info_object": null
+}

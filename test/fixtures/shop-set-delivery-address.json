@@ -1,0 +1,38 @@
+{
+  "activeAddress": {
+    "id": "21046",
+    "dawa_uid": null,
+    "name": "Bilka Odense",
+    "address": " Niels Bohrs Alle 150, 5230 Odense M",
+    "street": " Niels Bohrs Alle 150",
+    "zip": "5230",
+    "city": "Odense M",
+    "sid": "1654",
+    "lat": "55.377061",
+    "lng": "10.4319659",
+    "recipient_name": "",
+    "facility": 3,
+    "minimum_buy": 0,
+    "blockbit": 0,
+    "nextAvailableDeliveryDate": "2026-11-03",
+    "currentDeliveryDate": "2026-11-08",
+    "missing_hd_address": false,
+    "accessconditions_required": false,
+    "hd_available": false,
+    "temporary_zipcode": "0000"
+  },
+  "activeDeliveryPointComment": null,
+  "notifications": [
+    {
+      "id": "fa20e7c3151b0c55cb809d82b665982315380d4e",
+      "type": "info",
+      "text": "Log ind for at se aktuelle varer og priser i dit Bilka varehus",
+      "duration": 0,
+      "showOnlyOneTime": true
+    }
+  ],
+  "eid": -1,
+  "uid": 1000001,
+  "tid": "00000000-0000-4000-8000-000000000001",
+  "info_object": null
+}

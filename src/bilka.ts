@@ -3,6 +3,17 @@
 // or øre.
 
 import { type Cart, toCart } from "./cart.ts";
+import {
+  type ChosenSlot,
+  chosenSlot,
+  type DeliveryPlace,
+  type DeliverySlots,
+  HOME_DELIVERY_FACILITY,
+  homeLabel,
+  toDeliverySlots,
+  toPlace,
+  toPlaces,
+} from "./delivery.ts";
 import { kroner } from "./money.ts";
 import {
   type OrderDetails,
@@ -155,6 +166,33 @@ export type BilkaClient = {
    * says whether trying again may help.
    */
   setLineQuantity(request: { productId: string; quantity: number }): Promise<LineChange>;
+  /** The places the account's cart can be delivered to or picked up from, scrubbed. */
+  getDeliveryPlaces(): Promise<{ currentPlaceId: string | null; places: DeliveryPlace[] }>;
+  /**
+   * Switches the cart to one of `getDeliveryPlaces`' places. Null when the
+   * account has no such place. Bilka keeps the chosen slot, but it may not be
+   * offered at the new place.
+   */
+  setDeliveryPlace(placeId: string): Promise<PlaceChange | null>;
+  /** The slots at the cart's current place, for the next two weeks. */
+  getDeliverySlots(): Promise<DeliverySlots>;
+  /** Sets the cart's slot. Bilka reserves nothing: a slot can fill up before the order is placed. */
+  setDeliverySlot(slot: ChosenSlot): Promise<SlotChange>;
+};
+
+export type PlaceChange = {
+  place: DeliveryPlace;
+  /** False when the cart was at this place already, so nothing was sent. */
+  changed: boolean;
+  /** The store that packed the cart before, or null when Bilka didn't say. */
+  previousStoreId: string | null;
+};
+
+/** Bilka's answer to setting the slot. */
+export type SlotChange = {
+  slot: ChosenSlot;
+  /** e.g. "Tir. 03/11. kl. 08:00 - 10:00". */
+  text: string | null;
 };
 
 /** Bilka's answer to setting one cart line. */
@@ -335,24 +373,28 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
     endpoint: string,
     params: Record<string, string>,
     init: RequestInit = { method: "GET" },
+    { scrub = true }: { scrub?: boolean } = {},
   ): Promise<Record<string, unknown>> {
     for (let attempt = 1; ; attempt++) {
       const jwt = await session.jwt();
-      const answer = await shopAnswer(what, shopUrl(endpoint, params), {
-        ...init,
-        headers: { ...(init.headers as Record<string, string>), jwt_token: jwt },
-      });
+      const answer = await shopAnswer(
+        what,
+        shopUrl(endpoint, params),
+        { ...init, headers: { ...(init.headers as Record<string, string>), jwt_token: jwt } },
+        scrub,
+      );
       if (answer !== NOT_LOGGED_IN) return answer;
       if (attempt === 2) throw new NotLoggedInError(what);
       session.rejected(jwt);
     }
   }
 
-  /** One shop call: its scrubbed answer, or NOT_LOGGED_IN. */
+  /** One shop call: its answer, scrubbed unless `scrub` is false, or NOT_LOGGED_IN. */
   async function shopAnswer(
     what: string,
     url: string,
     init: RequestInit,
+    scrub: boolean,
   ): Promise<Record<string, unknown> | typeof NOT_LOGGED_IN> {
     const response = await send(fetch, what, url, init);
     if (response.status === 401 || response.status === 403) return NOT_LOGGED_IN;
@@ -362,7 +404,7 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
     if (isShopError(data)) {
       throw new BilkaError(`${what} failed: Bilka refused the request (code ${data.code})`);
     }
-    return scrubPersonalData(data) as Record<string, unknown>;
+    return scrub ? (scrubPersonalData(data) as Record<string, unknown>) : data;
   }
 
   /** A shop API URL. The website adds `u=w` to every shop call, so do we. */
@@ -446,6 +488,85 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       return toLineChange(what, productId, data);
     },
 
+    async getDeliveryPlaces() {
+      const data = await shopJson("Delivery place list", "v6/AvailableDeliveryAddresses", {
+        orderByZipcode: "",
+      });
+      const places = arrayField(data, "addresses", "Delivery place list answered without places");
+      return {
+        currentPlaceId: toPlace(data.activeAddress)?.place_id ?? null,
+        places: toPlaces(places),
+      };
+    },
+
+    async setDeliveryPlace(placeId) {
+      const what = "Changing the delivery place";
+      // Read unscrubbed on purpose, and the only such read: switching to home
+      // delivery means sending the account's own street and address id
+      // (`dawa_uid`) back to Bilka, as the website does. They go from this
+      // answer straight into the request and are never returned or logged.
+      const list = await shopJson(
+        "Delivery place list",
+        "v6/AvailableDeliveryAddresses",
+        { orderByZipcode: "" },
+        { method: "GET" },
+        { scrub: false },
+      );
+      const places = (Array.isArray(list.addresses) ? list.addresses : []).filter(isRecord);
+      const homes = places.filter((place) => place.facility === HOME_DELIVERY_FACILITY);
+      const target =
+        homes.find((_, index) => homeLabel(index + 1) === placeId) ??
+        places.find(
+          (place) => place.facility !== HOME_DELIVERY_FACILITY && String(place.id) === placeId,
+        );
+      if (target === undefined) return null;
+      // toPlace keeps only the kind, store and minimum, plus the id and name
+      // of a public place, so it's safe on the unscrubbed entry.
+      const place = toPlace(target, placeId);
+      if (place === null) return null;
+      const active = isRecord(list.activeAddress) ? list.activeAddress : {};
+      const previousStoreId = text(String(active.sid ?? ""));
+      if (String(active.id) === String(target.id)) {
+        return { place, changed: false, previousStoreId };
+      }
+      const params: Record<string, string> =
+        target.facility === HOME_DELIVERY_FACILITY
+          ? { dawa_uid: text(target.dawa_uid) ?? "", street: text(target.street) ?? "" }
+          : { id: placeId, zipcode: String(target.zip ?? "") };
+      if (target.facility === HOME_DELIVERY_FACILITY && (!params.dawa_uid || !params.street)) {
+        throw new BilkaError(`${what} failed: Bilka's place list holds no home address to send`);
+      }
+      const answer = await shopJson(what, "v6/SetDeliveryAddress", { ...params, basketguid: "" });
+      // The answer is scrubbed, so a home address shows only its kind.
+      const now = toPlace(answer.activeAddress, placeId);
+      if (now === null || now.kind !== place.kind || now.place_id !== placeId) {
+        throw new BilkaError(`${what} failed: Bilka didn't switch the cart${saying(answer.msg)}`);
+      }
+      return { place, changed: true, previousStoreId };
+    },
+
+    async getDeliverySlots() {
+      return toDeliverySlots(await shopJson("Delivery slot list", "v3/AvailableDeliveryDates", {}));
+    },
+
+    async setDeliverySlot(slot) {
+      const what = "Setting the delivery slot";
+      const answer = await shopJson(what, "v3/SetDeliveryDate", {
+        deliveryDate: slot.date,
+        intervalStart: slot.start,
+        intervalEnd: slot.end,
+      });
+      const set = chosenSlot(
+        text(answer.deliveryDate) ?? undefined,
+        text(answer.intervalStart) ?? undefined,
+        text(answer.intervalEnd) ?? undefined,
+      );
+      if (set?.date !== slot.date || set.start !== slot.start) {
+        throw new BilkaError(`${what} failed: Bilka didn't set the slot${saying(answer.msg)}`);
+      }
+      return { slot: set, text: text(answer.delivery_message) };
+    },
+
     async getOrderHistory({ offset, limit }) {
       // POST, as the website and nickknissen send it (docs/research.md §3).
       // `muah: "1"` is sent because the website sends it; what it means is
@@ -482,30 +603,45 @@ function toLineChange(what: string, productId: string, data: Record<string, unkn
   };
 }
 
+/** ": <Bilka's message>" when the answer carries one, for error messages. */
+function saying(message: unknown): string {
+  const said = text(message);
+  return said === null ? "" : `. Bilka says: ${JSON.stringify(said)}`;
+}
+
 /** The shop said the request isn't logged in. */
 const NOT_LOGGED_IN = Symbol("not logged in");
 
 /**
- * The shop's error envelope: HTTP 200 with a non-zero `code` and a `msg`.
- * Real answers carry the account's `uid` beside their data.
+ * The shop's error envelope: HTTP 200 with a `code` and a `msg`. The code is
+ * a number in the reference clients (`code: 1`) and a string live
+ * (`code: "ACCESS_DENIED"`, 2026-11-02). Real answers carry no `code`.
  */
 function isShopError(
   data: Record<string, unknown>,
-): data is Record<string, unknown> & { code: number; msg: string } {
-  return typeof data.code === "number" && data.code !== 0 && typeof data.msg === "string";
+): data is Record<string, unknown> & { code: number | string; msg: string } {
+  const { code } = data;
+  const isCode =
+    (typeof code === "number" && code !== 0) ||
+    (typeof code === "string" && code !== "" && code !== "0");
+  return isCode && typeof data.msg === "string";
 }
 
 /**
- * The shop's "not logged in" answer, as the reference clients detect it: the
- * error envelope with `code: 1` (`{code: 1, msg: "Du er ikke logget ind"}`,
- * nickknissen/bilkatogo) or with a `uid` of 0 or less (`uid: -1`,
- * stigvoss/bilkatogo-mcp). Other errors carry the account's own uid. HTTP 401
- * and 403 count too (see `shopAnswer`). Unconfirmed live (docs/research.md §3).
+ * The shop's "not logged in" answer: the error envelope with a `uid` of 0 or
+ * less. Live (2026-11-02, no JWT sent): `{msg: "Metoden kræver login", code:
+ * "ACCESS_DENIED", eid: 401, uid: -1}`. `code: 1` (`{code: 1, msg: "Du er ikke
+ * logget ind"}`, nickknissen/bilkatogo) counts too. Other errors carry the
+ * account's own uid. HTTP 401 and 403 count as well (see `shopAnswer`).
  */
 function isNotLoggedIn(data: Record<string, unknown>): boolean {
   if (!isShopError(data)) return false;
   const uid = Number(data.uid);
-  return data.code === 1 || (data.uid !== undefined && Number.isFinite(uid) && uid <= 0);
+  return (
+    data.code === 1 ||
+    data.code === "ACCESS_DENIED" ||
+    (data.uid !== undefined && Number.isFinite(uid) && uid <= 0)
+  );
 }
 
 /** The array under `key` in a decoded response, or a BilkaError saying what was missing. */

@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { JWT, jsonResponse, LOGIN_TOKEN } from "./support/fake-bilka.ts";
 import type { FakeBilka } from "./support/fake-bilka.ts";
-import { groceryCart } from "./support/carts.ts";
+import { CAPTURED_DELIVERY, groceryCart } from "./support/carts.ts";
 import { connect } from "./support/harness.ts";
 
 const withLoginToken = { credentials: { env: { BILKATOGO_LOGIN_TOKEN: LOGIN_TOKEN } } };
@@ -56,6 +56,7 @@ test("set_cart_quantity sets a line to an absolute quantity and returns the line
         { name: "Pakkeservice", amount: 39 },
         { name: "Leveringsgebyr", amount: 39 },
       ],
+      delivery: CAPTURED_DELIVERY,
     },
   });
 });

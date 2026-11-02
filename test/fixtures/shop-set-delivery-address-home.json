@@ -1,0 +1,46 @@
+{
+  "activeAddress": {
+    "id": "999001",
+    "dawa_uid": "00000000-0000-0000-0000-000000000000",
+    "name": "Test Testesen",
+    "address": "Testvej 1, 1. tv",
+    "street": "Testvej 1",
+    "zip": "0000",
+    "city": "Testby",
+    "sid": "1654",
+    "lat": "55.0000000",
+    "lng": "10.0000000",
+    "recipient_name": "Test Testesen",
+    "facility": 8,
+    "minimum_buy": 50000,
+    "blockbit": 7,
+    "nextAvailableDeliveryDate": "2026-11-02",
+    "currentDeliveryDate": "2026-11-08",
+    "missing_hd_address": false,
+    "accessconditions_required": false,
+    "hd_available": true,
+    "temporary_zipcode": "0000"
+  },
+  "activeDeliveryPointComment": {
+    "id": 10,
+    "comment": "",
+    "delivery_text": "FAKE-NOTE: levering ved hoveddør",
+    "access_required": false,
+    "doorcode": "",
+    "access_choice": "FAKE-ACCESS: ring på",
+    "selectable": true
+  },
+  "notifications": [
+    {
+      "id": "fa20e7c3151b0c55cb809d82b665982315380d4e",
+      "type": "info",
+      "text": "Log ind for at se aktuelle varer og priser i dit Bilka varehus",
+      "duration": 0,
+      "showOnlyOneTime": true
+    }
+  ],
+  "eid": -1,
+  "uid": 1000001,
+  "tid": "00000000-0000-4000-8000-000000000001",
+  "info_object": null
+}

@@ -16,7 +16,11 @@ It speaks MCP 2026-07-28 and still serves clients that use the older `initialize
 | `get_product_details` | Everything the catalogue holds about one product: size, prices, unit price, category, labels, and ingredients, allergens and nutrition where Bilka publishes them. | no |
 | `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves, plus the store the server uses now. | no |
 | `select_store` | Chooses the store to shop at, by store id or part of a store or pickup-point name ("odense"). When several stores match, it saves nothing and lists them so the assistant can ask you which one. Saved in `settings.json`; it changes only this server's setting, never your Bilka account. | no |
-| `get_cart` | Reads your cart: each line's product, quantity, unit price and line total, the cart total, item count and fees, in DKK. A compact summary by default; `full` adds brand, size, delivery slot and the distance to Bilka's minimum order. | yes |
+| `get_cart` | Reads your cart: each line's product, quantity, unit price and line total, the cart total, item count and fees, in DKK, and where and when it goes (home delivery or a pickup place, and the chosen slot). A compact summary by default; `full` adds brand, size and the distance to Bilka's minimum order. | yes |
+| `list_delivery_places` | Lists where your cart can go: home delivery (`"home"`; the address is never shown), pickup in any Bilka store, and the PickUp points, each with the store that packs it and its minimum order. | yes |
+| `set_delivery_place` | Moves the cart to one of those places, e.g. from home delivery to pickup in Bilka Odense. Fees and the minimum order change with it (pickup has no delivery fee), and search follows the cart's store. Flagged destructive, so your MCP client can ask you first. | yes |
+| `list_delivery_slots` | Lists the next two weeks of slots at the cart's current place: each day's status (available, sold out, order deadline passed, not open yet) and its slots with the order deadline. Other places have other slots, so to compare, the cart switches place first. | yes |
+| `set_delivery_slot` | Sets the cart's slot by date and start time, after checking it's available. Bilka reserves nothing: a slot can still fill up before you order. | yes |
 | `set_cart_quantity` | Sets one product's cart line to an exact quantity, from 0 to 50 (0 removes the line). Returns the line as Bilka reports it, Bilka's note on the change when there is one, and the cart afterwards. Your MCP client sees it flagged destructive, so it can ask you first. | yes |
 | `set_cart_quantities` | Sets up to 50 cart lines in one call, e.g. a recipe or a repeat of a past order. Each quantity is exact, from 0 to 50 (0 removes the line), and each product may appear once. Items are applied in order; timeouts, rate limits (HTTP 429) and Bilka server errors (HTTP 5xx) are retried up to three times with growing waits, and a failed item doesn't stop the rest, with two exceptions: a failed login, and an item that still gets HTTP 429 after its retries, stop the batch so the rest don't fail too or push further into Bilka's rate limit. The items after it are reported as failed with 0 attempts and a "not attempted" reason. Other network failures (Bilka unreachable) aren't retried. Returns each item's outcome and the cart afterwards (summary, or `full`). Flagged destructive. | yes |
 | `get_order_history` | Lists your past orders, newest first and a page at a time: order id, order date, delivery date and slot, status, total in DKK, item count and a short preview of item names. | yes |
@@ -42,11 +46,13 @@ The choice is saved to `~/.config/bilka-mcp/settings.json` (under `$XDG_CONFIG_H
 
 Optionally, set a default store without asking the assistant: `BILKATOGO_STORE_ID`, or `"storeId"` in `~/.config/bilka-mcp/login.json` (see [Credential options](#credential-options)). The environment wins over the login file, and a store chosen with `select_store` wins over both, because it's your most recent choice. The defaults are read only when a tool needs the store, and the file at most once per run, so restart the server after changing them. Without any store, `search_products` answers with an error that tells the assistant to choose one.
 
-The original spec (issue #1) pinned eight tools. `select_store` was added on request, so you can pick a store by name in conversation instead of looking up and configuring its id.
+The original spec (issue #1) pinned eight tools. `select_store` was added on request, so you can pick a store by name in conversation instead of looking up and configuring its id. When you switch the cart to a pickup place in another store with `set_delivery_place`, the selected store follows it, so search shows the cart's prices.
+
+The four delivery tools were added on request too: when home delivery is sold out, the assistant can suggest pickup, switch the cart once you agree, and choose a slot there.
 
 ## Log in
 
-Tools that use your account (`get_cart`, the two cart setters and the order tools) need a BilkaToGo login. The server logs in only when such a tool runs; search and the store list work without any credentials.
+Tools that use your account (`get_cart`, the two cart setters, the delivery tools and the order tools) need a BilkaToGo login. The server logs in only when such a tool runs; search and the store list work without any credentials.
 
 ### Credential options
 

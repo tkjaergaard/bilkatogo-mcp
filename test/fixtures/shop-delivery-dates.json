@@ -1,0 +1,282 @@
+{
+  "deliveryDate": "2026-11-08",
+  "intervalStart": "00:00",
+  "intervalEnd": "06:00",
+  "availableDates": [
+    "2026-11-02",
+    "2026-11-04",
+    "2026-11-05",
+    "2026-11-06",
+    "2026-11-07",
+    "2026-11-08",
+    "2026-11-09"
+  ],
+  "availableIntervals": [
+    {
+      "date": "2026-11-02",
+      "intervals": [
+        {
+          "intervalTxt": "00:00 - 06:00",
+          "intervalStart": "00:00",
+          "intervalEnd": "06:00",
+          "availability_bit": 2,
+          "closed": 1,
+          "ship_before": 300,
+          "ship_time": "19:00",
+          "id": 1741,
+          "orderBeforeTime": "på søndag kl. 15:00",
+          "closed_text": "",
+          "info": [
+            {
+              "message": "Levering vil ske <strong>natten til mandag</strong>. Vi kommer med dine varer imellem 20:00 og 06:00. "
+            },
+            {
+              "message": "For at benytte det valgte tidsrum, skal du bestille senest på søndag kl. 15:00, bemærk at tidspunktet kan blive fuldt booket forinden."
+            }
+          ]
+        }
+      ],
+      "dayofweek": 1,
+      "availability_bit": 2,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-03",
+      "intervals": [],
+      "availability_bit": 4,
+      "dayofweek": 2,
+      "closed_text": "udsolgt",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-04",
+      "intervals": [
+        {
+          "intervalTxt": "00:00 - 06:00",
+          "intervalStart": "00:00",
+          "intervalEnd": "06:00",
+          "availability_bit": 1,
+          "closed": 0,
+          "ship_before": 300,
+          "ship_time": "19:00",
+          "id": 1741,
+          "orderBeforeTime": "i morgen kl. 15:00",
+          "closed_text": "",
+          "info": [
+            {
+              "message": "Levering vil ske <strong>natten til onsdag</strong>. Vi kommer med dine varer imellem 20:00 og 06:00. "
+            },
+            {
+              "message": "For at benytte det valgte tidsrum, skal du bestille senest i morgen kl. 15:00, bemærk at tidspunktet kan blive fuldt booket forinden."
+            }
+          ]
+        }
+      ],
+      "dayofweek": 3,
+      "availability_bit": 1,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-05",
+      "intervals": [
+        {
+          "intervalTxt": "00:00 - 06:00",
+          "intervalStart": "00:00",
+          "intervalEnd": "06:00",
+          "availability_bit": 1,
+          "closed": 0,
+          "ship_before": 300,
+          "ship_time": "19:00",
+          "id": 1741,
+          "orderBeforeTime": "på onsdag kl. 15:00",
+          "closed_text": "",
+          "info": [
+            {
+              "message": "Levering vil ske <strong>natten til torsdag</strong>. Vi kommer med dine varer imellem 20:00 og 06:00. "
+            },
+            {
+              "message": "For at benytte det valgte tidsrum, skal du bestille senest på onsdag kl. 15:00, bemærk at tidspunktet kan blive fuldt booket forinden."
+            }
+          ]
+        }
+      ],
+      "dayofweek": 4,
+      "availability_bit": 1,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-06",
+      "intervals": [
+        {
+          "intervalTxt": "00:00 - 06:00",
+          "intervalStart": "00:00",
+          "intervalEnd": "06:00",
+          "availability_bit": 1,
+          "closed": 0,
+          "ship_before": 300,
+          "ship_time": "19:00",
+          "id": 1741,
+          "orderBeforeTime": "på torsdag kl. 15:00",
+          "closed_text": "",
+          "info": [
+            {
+              "message": "Levering vil ske <strong>natten til fredag</strong>. Vi kommer med dine varer imellem 20:00 og 06:00. "
+            },
+            {
+              "message": "For at benytte det valgte tidsrum, skal du bestille senest på torsdag kl. 15:00, bemærk at tidspunktet kan blive fuldt booket forinden."
+            }
+          ]
+        }
+      ],
+      "dayofweek": 5,
+      "availability_bit": 1,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-07",
+      "intervals": [
+        {
+          "intervalTxt": "00:00 - 06:00",
+          "intervalStart": "00:00",
+          "intervalEnd": "06:00",
+          "availability_bit": 1,
+          "closed": 0,
+          "ship_before": 300,
+          "ship_time": "19:00",
+          "id": 1741,
+          "orderBeforeTime": "på fredag kl. 15:00",
+          "closed_text": "",
+          "info": [
+            {
+              "message": "Levering vil ske <strong>natten til lørdag</strong>. Vi kommer med dine varer imellem 20:00 og 06:00. "
+            },
+            {
+              "message": "For at benytte det valgte tidsrum, skal du bestille senest på fredag kl. 15:00, bemærk at tidspunktet kan blive fuldt booket forinden."
+            }
+          ]
+        }
+      ],
+      "dayofweek": 6,
+      "availability_bit": 1,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-08",
+      "intervals": [
+        {
+          "intervalTxt": "00:00 - 06:00",
+          "intervalStart": "00:00",
+          "intervalEnd": "06:00",
+          "availability_bit": 1,
+          "closed": 0,
+          "ship_before": 300,
+          "ship_time": "19:00",
+          "id": 1741,
+          "orderBeforeTime": "på lørdag kl. 15:00",
+          "closed_text": "",
+          "info": [
+            {
+              "message": "Levering vil ske <strong>natten til søndag</strong>. Vi kommer med dine varer imellem 20:00 og 06:00. "
+            },
+            {
+              "message": "For at benytte det valgte tidsrum, skal du bestille senest på lørdag kl. 15:00, bemærk at tidspunktet kan blive fuldt booket forinden."
+            }
+          ]
+        }
+      ],
+      "dayofweek": 7,
+      "availability_bit": 1,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-09",
+      "intervals": [
+        {
+          "intervalTxt": "00:00 - 06:00",
+          "intervalStart": "00:00",
+          "intervalEnd": "06:00",
+          "availability_bit": 1,
+          "closed": 0,
+          "ship_before": 300,
+          "ship_time": "19:00",
+          "id": 1741,
+          "orderBeforeTime": "på søndag kl. 15:00",
+          "closed_text": "",
+          "info": [
+            {
+              "message": "Levering vil ske <strong>natten til mandag</strong>. Vi kommer med dine varer imellem 20:00 og 06:00. "
+            },
+            {
+              "message": "For at benytte det valgte tidsrum, skal du bestille senest på søndag kl. 15:00, bemærk at tidspunktet kan blive fuldt booket forinden."
+            }
+          ]
+        }
+      ],
+      "dayofweek": 1,
+      "availability_bit": 1,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-10",
+      "intervals": [],
+      "availability_bit": 0,
+      "dayofweek": 2,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-11",
+      "intervals": [],
+      "availability_bit": 0,
+      "dayofweek": 3,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-12",
+      "intervals": [],
+      "availability_bit": 0,
+      "dayofweek": 4,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-13",
+      "intervals": [],
+      "availability_bit": 0,
+      "dayofweek": 5,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-14",
+      "intervals": [],
+      "availability_bit": 0,
+      "dayofweek": 6,
+      "closed_text": "",
+      "holiday": false
+    },
+    {
+      "date": "2026-11-15",
+      "intervals": [],
+      "availability_bit": 0,
+      "dayofweek": 7,
+      "closed_text": "",
+      "holiday": false
+    }
+  ],
+  "orderBeforeMessage": "For at benytte det valgte tidsrum, skal du bestille senest",
+  "orderBeforeMessageSuffix": "bemærk at tidspunktet kan blive fuldt booket forinden.",
+  "noAvailableDates": false,
+  "eid": -1,
+  "uid": 1000001,
+  "tid": "00000000-0000-4000-8000-000000000001",
+  "info_object": null
+}
