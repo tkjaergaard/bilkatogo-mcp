@@ -4,6 +4,12 @@
 
 import { type Cart, toCart } from "./cart.ts";
 import { kroner } from "./money.ts";
+import {
+  type OrderDetails,
+  type OrderHistoryPage,
+  toOrderDetails,
+  toOrderHistoryPage,
+} from "./orders.ts";
 import { scrubPersonalData } from "./scrub.ts";
 
 export const ALGOLIA_APP_ID = "F9VBJLR1BK";
@@ -25,6 +31,13 @@ export const REQUEST_TIMEOUT_MS = 30_000;
 
 /** A Bilka product id: Algolia's numeric `objectID`. */
 export const PRODUCT_ID_PATTERN = /^\d{1,12}$/;
+
+/**
+ * A BilkaToGo order id. Live ids are 12 digits (e.g. "900000000001"); a little
+ * slack either side keeps older or newer ids working, while still refusing
+ * anything that isn't an id before it reaches Bilka.
+ */
+export const ORDER_ID_PATTERN = /^\d{6,16}$/;
 
 // Offer labels that say nothing; the price fields tell the story instead.
 const PLACEHOLDER_OFFER_LABELS = new Set(["", "se her"]);
@@ -129,6 +142,10 @@ export type BilkaClient = {
   listStores(): Promise<Store[]>;
   /** The logged-in cart, with personal data already scrubbed. */
   getCart(): Promise<Cart>;
+  /** One page of the account's past orders, newest first, scrubbed. */
+  getOrderHistory(request: { offset: number; limit: number }): Promise<OrderHistoryPage>;
+  /** Everything in one past order, scrubbed. Null when the account has no such order. */
+  getOrderDetails(orderId: string): Promise<OrderDetails | null>;
 };
 
 /** A failure talking to Bilka. The message is safe to show the model. */
@@ -312,6 +329,22 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
         extra: "deliveryAddress,deliveryDate",
       });
       return toCart(data);
+    },
+
+    async getOrderHistory({ offset, limit }) {
+      // POST, as the website and nickknissen send it (docs/research.md §3).
+      const data = await shopJson(
+        "Order history",
+        "v7/OrderHistory",
+        { limit: String(limit), offset: String(offset), muah: "1", ordertype: "dibs,pgw" },
+        { method: "POST" },
+      );
+      return toOrderHistoryPage(data, { offset, limit });
+    },
+
+    async getOrderDetails(orderId) {
+      const data = await shopJson("Order details", "v7/OrderDetails", { orderId });
+      return isRecord(data.order) ? toOrderDetails(data.order) : null;
     },
   };
 }

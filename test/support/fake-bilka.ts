@@ -115,6 +115,12 @@ export class FakeBilka {
   jwt = JWT;
   /** The logged-in cart `shop/v6/Cart` answers with. */
   cart: Record<string, any> = loadFixture("shop-cart.json");
+  /** The account's past orders, newest first, as `shop/v7/OrderHistory` lists them. */
+  orders: Record<string, any>[] = loadFixture("shop-order-history.json").orders;
+  /** `shop/v7/OrderDetails` answers, by order id. */
+  orderDetails: Record<string, Record<string, any>> = {
+    "900000000001": loadFixture("shop-order-details.json").order,
+  };
 
   private scripts: Script[] = [];
 
@@ -233,7 +239,38 @@ export class FakeBilka {
       (request.method === "GET"
         ? jsonResponse(structuredClone(this.cart))
         : jsonResponse({ message: "Method not allowed" }, 405)),
+    "shop.OrderHistory": (request) => this.requireJwt(request) ?? this.orderHistory(request),
+    "shop.OrderDetails": (request) => this.requireJwt(request) ?? this.orderDetail(request),
   };
+
+  /**
+   * `shop/v7/OrderHistory`: a POST with `limit` and `offset` in the query,
+   * answered in the captured shape (`limit` comes back as a string there).
+   */
+  private orderHistory(request: RecordedRequest): Response {
+    if (request.method !== "POST") return jsonResponse({ message: "Method not allowed" }, 405);
+    const fixture = loadFixture("shop-order-history.json");
+    const limit = Number(request.url.searchParams.get("limit") ?? "5");
+    const offset = Number(request.url.searchParams.get("offset") ?? "0");
+    return jsonResponse({
+      ...fixture,
+      limit: String(limit),
+      offset,
+      orders: structuredClone(this.orders.slice(offset, offset + limit)),
+      total: this.orders.length,
+    });
+  }
+
+  /**
+   * `shop/v7/OrderDetails?orderId=…`. No capture shows the answer for an
+   * order the account doesn't have; the fake answers `{order: null}`.
+   */
+  private orderDetail(request: RecordedRequest): Response {
+    if (request.method !== "GET") return jsonResponse({ message: "Method not allowed" }, 405);
+    const fixture = loadFixture("shop-order-details.json");
+    const order = this.orderDetails[request.url.searchParams.get("orderId") ?? ""];
+    return jsonResponse({ ...fixture, order: order === undefined ? null : structuredClone(order) });
+  }
 
   /**
    * Gigya's login token → JWT exchange. Answers like the capture
