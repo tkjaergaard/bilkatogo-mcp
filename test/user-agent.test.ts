@@ -21,7 +21,7 @@ test("every request to Algolia, Gigya and the shop names the project and its ver
   ]);
   for (const request of bilka.requests) {
     expect(request.headers.get("user-agent")).toBe(
-      `bilka-mcp/${version} (+https://github.com/tkjaergaard/bilka-mcp)`,
+      `bilkatogo-mcp/${version} (+https://github.com/tkjaergaard/bilkatogo-mcp)`,
     );
   }
 });

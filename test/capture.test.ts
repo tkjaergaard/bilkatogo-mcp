@@ -141,7 +141,7 @@ describe("capture script", () => {
     expect(bilka.requests.length).toBeGreaterThan(0);
     for (const request of bilka.requests) {
       expect(request.headers.get("user-agent")).toBe(
-        `bilka-mcp/${version} (+https://github.com/tkjaergaard/bilka-mcp)`,
+        `bilkatogo-mcp/${version} (+https://github.com/tkjaergaard/bilkatogo-mcp)`,
       );
     }
   });
