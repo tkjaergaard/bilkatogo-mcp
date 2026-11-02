@@ -10,7 +10,9 @@ Releases go to npm as `bilkatogo-mcp` through a release PR, using [release-pleas
    - `feat!:`, or a `BREAKING CHANGE:` footer, would give a major release. Before 1.0.0 it gives a minor release instead (`bump-minor-pre-major`).
    - `chore:`, `docs:`, `test:`, `ci:` and `refactor:` don't release anything on their own.
 2. After each merge, the workflow opens or updates a PR titled `chore(main): release x.y.z`. It bumps the version in `package.json` and `package-lock.json` and adds the changes to `CHANGELOG.md`.
-3. Merge that PR when you want to ship. The workflow then tags `vx.y.z`, creates the GitHub release, runs `npm run check` and publishes to npm. `npm publish` runs `prepack`, which builds `dist/`.
+3. Merge that PR when you want to ship. The workflow then tags `vx.y.z`, creates the GitHub release and publishes to npm in two jobs:
+   - **build** installs the dependencies, runs `npm run check` and `npm pack` (whose `prepack` builds `dist/`). It has no right to publish.
+   - **publish** gets only the packed tarball and runs `npm publish` on it. It installs nothing, so no dependency's install script runs where the publish token exists.
 
 Users on `npx -y bilkatogo-mcp@latest` get the release the next time their MCP client starts the server.
 
@@ -36,6 +38,8 @@ npm's trusted publishing lets the workflow publish without an npm token. It can 
 6. Run the Release workflow once by hand (**Actions → Release → Run workflow**), so the next release PR counts from v0.1.0.
 
 ## Notes
+
+- Every action in the release workflow is pinned to a commit, so a moved tag can't change what runs. To update one, look up the new release's commit and update the SHA and its version comment.
 
 - npm attaches a provenance statement (a signed record of the commit and workflow that built the release) only when the repo is public. From a private repo, trusted publishing still works, without provenance.
 - To release a specific version, add a `Release-As: x.y.z` footer to a commit on `main`.
