@@ -185,41 +185,80 @@ export function createServer(config: ServerConfig): McpServer {
     {
       title: "Search BilkaToGo products",
       description: [
-        "Search the BilkaToGo catalogue at the configured Bilka store.",
+        "Search or browse the BilkaToGo catalogue at the configured Bilka store.",
+        "Give a `query`, or leave it out and browse with `only_leaflet` or `only_offers`.",
+        "`only_leaflet` means this week's Bilka Avisen (the leaflet) and nothing else.",
+        "`only_offers` is much broader: anything with an offer text, including everyday price",
+        'labels such as "Skarp pris". Each product\'s `in_leaflet` tells the two apart.',
         "Prices are in DKK. `price` is what one item costs now; when the product is discounted,",
-        '`regular_price` and `saving` say by how much. `offer` is the offer text, e.g. "Mix 10 for 25,00".',
+        '`regular_price` and `saving` say by how much. `offer` is the offer text, e.g. "Mix 10 for 25,00",',
+        "and `offer_from`/`offer_until` its dates when the store gives them.",
         "Only products the store carries are returned; by default only those in stock.",
+        "Results come a page at a time: the answer has `page`, `total_pages` and `total_results`;",
+        "ask for the next `page` to see more.",
         untrustedText("Product names, descriptions and offer texts"),
       ].join(" "),
-      inputSchema: z.object({
-        query: z.string().trim().min(1).describe('Free-text search, e.g. "havremælk".'),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .default(10)
-          .describe(`How many results to return, at most ${limits.maxSearchResults}.`),
-        only_in_stock: z
-          .boolean()
-          .default(true)
-          .describe("Leave out products that are out of stock at the store."),
-        only_offers: z
-          .boolean()
-          .default(false)
-          .describe("Return only products on offer at the store."),
-      }),
+      inputSchema: z
+        .object({
+          query: z
+            .string()
+            .trim()
+            .min(1)
+            .optional()
+            .describe(
+              'Free-text search, e.g. "havremælk". Leave it out to browse by the filters alone.',
+            ),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .default(10)
+            .describe(`How many results to return, at most ${limits.maxSearchResults}.`),
+          page: z
+            .number()
+            .int()
+            .min(1)
+            .default(1)
+            .describe(
+              "Which page of results to return, from 1. The answer says how many there are.",
+            ),
+          only_in_stock: z
+            .boolean()
+            .default(true)
+            .describe("Leave out products that are out of stock at the store."),
+          only_offers: z
+            .boolean()
+            .default(false)
+            .describe("Return only products on offer at the store."),
+          only_leaflet: z
+            .boolean()
+            .default(false)
+            .describe("Return only products in this week's Bilka Avisen (the leaflet)."),
+        })
+        // Without any of these, a search would page through the whole catalogue.
+        .refine((input) => input.query !== undefined || input.only_leaflet || input.only_offers, {
+          message:
+            "Give a query, or narrow the search with only_leaflet: true or only_offers: true.",
+        }),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ query, limit, only_in_stock, only_offers }) => {
+    async ({ query, limit, page, only_in_stock, only_offers, only_leaflet }) => {
       const storeId = requireStoreId(await state.storeId());
-      const products = await bilka.searchProducts({
+      const found = await bilka.searchProducts({
         storeId,
-        query,
+        query: query ?? "",
+        filters: { onlyInStock: only_in_stock, onlyOffers: only_offers, onlyLeaflet: only_leaflet },
+        page,
         limit: Math.min(limit, limits.maxSearchResults),
-        onlyInStock: only_in_stock,
-        onlyOffers: only_offers,
       });
-      return jsonResult({ store_id: storeId, query, products });
+      return jsonResult({
+        store_id: storeId,
+        query: query ?? null,
+        page: found.page,
+        total_pages: found.totalPages,
+        total_results: found.totalResults,
+        products: found.products,
+      });
     },
   );
 

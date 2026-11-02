@@ -39,7 +39,8 @@ Bilka is now roughly where nemlig was: someone has written a client library (nic
 ```
 Search  ─► Algolia (public key the site ships to browsers, no login)
            POST https://F9VBJLR1BK-dsn.algolia.net/1/indexes/prod_BILKATOGO_PRODUCTS/query
-           filters: isInAssortmentIn:<sid>, inStockStore:<sid>, isInOffer:<sid>
+           filters: isInAssortmentIn:<sid>, inStockStore:<sid>, isInOffer:<sid>,
+                    isInCurrentLeaflet:true (the leaflet)
            details: POST .../1/indexes/*/objects
 
 Login   ─► SAP Gigya (eu1)
@@ -99,6 +100,22 @@ Differences from the community code:
 No phone number appeared in any answer. For pickup orders `pickupzone` holds the store's public address, but for home delivery it holds the customer's, so it's scrubbed either way.
 
 Product details, checked live on 2026-11-02 (one request, no login): `POST .../1/indexes/*/objects` with `{"requests":[{"indexName":"prod_BILKATOGO_PRODUCTS","objectID":"19753","attributesToRetrieve":[...]}]}` answers `{"results":[record]}`. Without `attributesToRetrieve` the record holds only `objectID`, so name the attributes. An unknown id gives `null` in `results` plus a `message` ("ObjectID … does not exist."). Full records carry more than search hits show: `infos` holds the product page's sections (`description`, `ingredients` with allergens in capitals, `nutritional_100`, `product_details`, `productspecification`), each with `items` of type 1 (free text with some HTML) or type 2 (name/value row). There are also `attributes` (labels such as "Europæisk ejerskab"), `energyInfo`, `safetyText(s)`, `safetyIcons` and `imageGUIDs`.
+
+### Algolia: offers, the leaflet and paging (checked live on 2026-11-02, public key, no login)
+
+**Bilka Avisen (the leaflet) isn't a separate service.** It's the product index filtered on `isInCurrentLeaflet:true`, a *global* boolean on each record (not per store, unlike `isInOffer:<sid>`). The website's leaflet page sends it together with its usual store filters: `inStockStore:<sid> AND isInAssortmentIn:<sid> AND nonsearchable:false AND isInCurrentLeaflet:true`. `search_products` sends the same set (`only_leaflet`), with the stock filter only when `only_in_stock` is on.
+
+Live counts:
+- Bilka Odense (1654), in stock: 11,081 products "on offer" (`isInOffer:1654`) against 2,952 in the leaflet. `isInOffer` counts every product with an offer text, so it includes Bilka's everyday price labels.
+- Store 1653, in stock: 2,959 leaflet products.
+- The first 200 leaflet products at 1653 carried these offer texts: "Skarp pris" 107, "Mix N for N,NN" 50, "Se Her" 39, "N for N" 3, "Spar N" 1. So the leaflet holds labelled everyday prices too; it is "this week's leaflet", not "discounted".
+- Offer dates are rare: only 4 of those 200 had `offerFrom`/`offerUntil` in the store's data (a "3 for 2" mix, 2026-10-29 → 2026-11-12, and a "Spar 7,95", 2026-10-23 → 2026-11-05). Most offers, "Skarp pris" included, have empty dates, so `offer_from`/`offer_until` are usually null.
+
+**Paging.** The query takes `page` (0-based) beside `hitsPerPage`, and answers with `page`, `nbPages` and `nbHits`. A leaflet query at 1653 with `hitsPerPage: 5, page: 1` answered `nbHits: 2959, nbPages: 592`, so `nbPages` isn't cut to Algolia's default limit of 1,000 reachable hits. Whether pages past hit 1,000 actually return products wasn't tried. `search_products` takes a 1-based `page` and returns `page`, `total_pages` and `total_results`.
+
+**Search hits return only `objectID`** unless `attributesToRetrieve` names attributes, like the objects endpoint.
+
+**A mix id can be long.** The "3 for 2" mix above has `multipromos: ["11220188"]`, `offerCount: 3` and an empty `multiPromoPrice`, while "Mix 2 for 35,00" style mixes have short ids (e.g. "1679") and a price in øre.
 
 Notes:
 - Prices are in øre, so divide by 100.

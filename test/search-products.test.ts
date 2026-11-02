@@ -3,7 +3,7 @@ import { ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY, type FakeBilka } from "./support/fa
 import { connect, STORE_ID } from "./support/harness.ts";
 import { loginFile } from "./support/login-file.ts";
 
-type AlgoliaParams = { query: string; filters: string; hitsPerPage: number };
+type AlgoliaParams = { query: string; filters: string; hitsPerPage: number; page?: number };
 
 /** The parameters of each Algolia query the fake received, in order. */
 function algoliaQueries(bilka: FakeBilka): AlgoliaParams[] {
@@ -52,9 +52,40 @@ test("each result has id, name, brand, size, prices in DKK, unit price and categ
     unit: "kg",
     on_offer: false,
     offer: null,
+    offer_from: null,
+    offer_until: null,
+    in_leaflet: false,
     in_stock: true,
     category: "Mejeri & køl > Mejeri > Yoghurt & syrnede mælkeprodukter > Skyr",
   });
+});
+
+test("a leaflet product says so, with the offer's dates at the store", async () => {
+  const { callTool } = await connect();
+
+  const { json } = await callTool("search_products", { only_leaflet: true });
+
+  // Worked by hand from the live record in test/fixtures/algolia-products.json, store 1653.
+  expect(json.products).toEqual([
+    {
+      product_id: "91454",
+      name: "Ristorante Pizza Salame",
+      brand: "Dr. Oetker",
+      size: "640 g",
+      price: 42,
+      regular_price: 49.95,
+      saving: 7.95,
+      unit_price: 65.63,
+      unit: "kg",
+      on_offer: true,
+      offer: "Spar 7,95",
+      offer_from: "2026-10-23",
+      offer_until: "2026-11-05",
+      in_leaflet: true,
+      in_stock: true,
+      category: "Frost > Færdigretter på frost > Pizza",
+    },
+  ]);
 });
 
 test("a discounted product shows its regular price, the saving and the offer text", async () => {
@@ -134,6 +165,28 @@ test("only_offers: true asks only for products on offer at the store", async () 
   expect(json.products.every((p: { on_offer: boolean }) => p.on_offer)).toBe(true);
 });
 
+test("only_leaflet: true asks only for this week's Bilka Avisen, with the store filters", async () => {
+  const { callTool, bilka } = await connect();
+
+  const { json } = await callTool("search_products", { query: "pizza", only_leaflet: true });
+
+  expect(sentFilters(bilka)).toEqual([
+    `isInAssortmentIn:${STORE_ID}`,
+    "nonsearchable:false",
+    `inStockStore:${STORE_ID}`,
+    "isInCurrentLeaflet:true",
+  ]);
+  expect(json.products.map((p: { product_id: string }) => p.product_id)).toEqual(["91454"]);
+});
+
+test("by default search doesn't filter on the leaflet", async () => {
+  const { callTool, bilka } = await connect();
+
+  await callTool("search_products", { query: "skyr" });
+
+  expect(sentFilters(bilka).some((f) => f.startsWith("isInCurrentLeaflet"))).toBe(false);
+});
+
 test("by default search doesn't filter on offers", async () => {
   const { callTool, bilka } = await connect();
 
@@ -160,12 +213,86 @@ test("the default maximum number of results is 50", async () => {
   expect(algoliaQueries(bilka).map((params) => params.hitsPerPage)).toEqual([50]);
 });
 
+test("the first page is the default, and the answer says how many pages and results there are", async () => {
+  const { callTool, bilka } = await connect();
+
+  const { json } = await callTool("search_products", {
+    query: "skyr",
+    only_in_stock: false,
+    limit: 4,
+  });
+
+  expect(algoliaQueries(bilka)).toMatchObject([{ page: 0, hitsPerPage: 4 }]);
+  // The fixture index holds six products; none is filtered out without the stock filter.
+  expect(json).toMatchObject({ page: 1, total_pages: 2, total_results: 6 });
+  expect(json.products).toHaveLength(4);
+});
+
+test("page is 1-based: page 2 asks Algolia for its page 1 and returns the rest", async () => {
+  const { callTool, bilka } = await connect();
+
+  const { json } = await callTool("search_products", {
+    query: "skyr",
+    only_in_stock: false,
+    limit: 4,
+    page: 2,
+  });
+
+  expect(algoliaQueries(bilka)).toMatchObject([{ page: 1, hitsPerPage: 4 }]);
+  expect(json).toMatchObject({ page: 2, total_pages: 2, total_results: 6 });
+  expect(json.products.map((p: { product_id: string }) => p.product_id)).toEqual([
+    "169794",
+    "91454",
+  ]);
+});
+
+test("a page past the last one comes back empty, with the totals", async () => {
+  const { callTool } = await connect();
+
+  const { json } = await callTool("search_products", {
+    query: "skyr",
+    only_in_stock: false,
+    limit: 4,
+    page: 5,
+  });
+
+  expect(json).toMatchObject({ page: 5, total_pages: 2, total_results: 6, products: [] });
+});
+
+test("a page below 1 is rejected before anything is sent", async () => {
+  const { callTool, bilka } = await connect();
+
+  const result = await callTool("search_products", { query: "skyr", page: 0 });
+
+  expect(result.isError).toBe(true);
+  expect(bilka.requests).toEqual([]);
+});
+
 test("search makes exactly one Algolia request and no Gigya or shop calls", async () => {
   const { callTool, bilka } = await connect();
 
   await callTool("search_products", { query: "havremælk" });
 
   expect(bilka.requests.map((r) => r.route)).toEqual(["algolia.query"]);
+});
+
+test("browsing the leaflet page by page makes one Algolia request per call and no Gigya or shop calls", async () => {
+  const { callTool, bilka } = await connect();
+
+  await callTool("search_products", { only_leaflet: true, limit: 1 });
+  await callTool("search_products", { only_leaflet: true, limit: 1, page: 2 });
+
+  expect(bilka.requests.map((r) => r.route)).toEqual(["algolia.query", "algolia.query"]);
+});
+
+test("the tool description tells the leaflet apart from everyday price labels", async () => {
+  const { client } = await connect();
+
+  const { tools } = await client.listTools();
+
+  const search = tools.find((tool) => tool.name === "search_products");
+  expect(search?.description).toMatch(/only_leaflet[^.]*Bilka Avisen/);
+  expect(search?.description).toMatch(/only_offers[^.]*Skarp pris/);
 });
 
 test("without a configured store, search returns a clear error pointing at the store list", async () => {
@@ -229,6 +356,42 @@ test("a store id that isn't a number is rejected before anything is sent", async
 
   expect(result.isError).toBe(true);
   expect(result.text).toContain("BILKATOGO_STORE_ID");
+  expect(bilka.requests).toEqual([]);
+});
+
+test("the leaflet can be browsed without a text query", async () => {
+  const { callTool, bilka } = await connect();
+
+  const result = await callTool("search_products", { only_leaflet: true });
+
+  expect(result.isError).toBe(false);
+  expect(algoliaQueries(bilka)).toMatchObject([{ query: "" }]);
+  expect(sentFilters(bilka)).toContain("isInCurrentLeaflet:true");
+  expect(result.json.query).toBeNull();
+  expect(result.json.products.map((p: { product_id: string }) => p.product_id)).toEqual(["91454"]);
+});
+
+test("offers can be browsed without a text query", async () => {
+  const { callTool, bilka } = await connect();
+
+  const result = await callTool("search_products", { only_offers: true });
+
+  expect(result.isError).toBe(false);
+  expect(algoliaQueries(bilka)).toMatchObject([{ query: "" }]);
+  expect(sentFilters(bilka)).toContain(`isInOffer:${STORE_ID}`);
+});
+
+test("without a query or a narrowing filter, search is rejected before anything is sent", async () => {
+  const { callTool, bilka } = await connect();
+
+  for (const args of [{}, { only_leaflet: false, only_offers: false }, { only_in_stock: false }]) {
+    const result = await callTool("search_products", args);
+
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("query");
+    expect(result.text).toContain("only_leaflet");
+    expect(result.text).toContain("only_offers");
+  }
   expect(bilka.requests).toEqual([]);
 });
 

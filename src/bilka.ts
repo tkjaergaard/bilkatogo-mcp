@@ -72,8 +72,17 @@ export type Product = {
   unit: string | null;
   /** Null when no store was given. */
   on_offer: boolean | null;
-  /** The offer text, e.g. "Skarp pris" or "Mix 10 for 25,00". */
+  /**
+   * The offer text, e.g. "Skarp pris" or "Mix 10 for 25,00". Everyday price
+   * labels such as "Skarp pris" count as offers too; `in_leaflet` tells this
+   * week's deals apart.
+   */
   offer: string | null;
+  /** Offer period at the store, as dates ("2026-10-16"), when Bilka gives one. */
+  offer_from: string | null;
+  offer_until: string | null;
+  /** Whether the product is in this week's Bilka Avisen (the leaflet), in every store. */
+  in_leaflet: boolean;
   /** Null when no store was given. */
   in_stock: boolean | null;
   /** e.g. "Mejeri & køl > Mejeri > Skyr". */
@@ -85,9 +94,6 @@ export type ProductDetails = Product & {
   /** Bilka's longer display name, e.g. "Skyr med vanilje 0,2%". */
   display_name: string | null;
   manufacturer: string | null;
-  /** Offer period at the store, as dates ("2026-10-16"), when Bilka gives one. */
-  offer_from: string | null;
-  offer_until: string | null;
   /** Whether the store carries the product at all. Null when no store was given. */
   in_store_assortment: boolean | null;
   /** e.g. "Skyr m. smag". */
@@ -127,12 +133,33 @@ export type Store = {
   pickup_points: string[];
 };
 
+/** One product search at one store. Every filter narrows the search further. */
 export type SearchRequest = {
   storeId: string;
+  /** Free text. Empty browses: only the filters choose the products. */
   query: string;
+  filters: SearchFilters;
+  /** 1-based. */
+  page: number;
+  /** Products per page. */
   limit: number;
+};
+
+/** One page of a product search. */
+export type SearchResult = {
+  products: Product[];
+  /** 1-based, as asked for. */
+  page: number;
+  totalPages: number;
+  totalResults: number;
+};
+
+export type SearchFilters = {
   onlyInStock: boolean;
+  /** Anything with an offer text at the store, everyday labels such as "Skarp pris" included. */
   onlyOffers: boolean;
+  /** This week's Bilka Avisen (the leaflet). */
+  onlyLeaflet: boolean;
 };
 
 /** Hands the client a JWT for shop calls that need the account. */
@@ -143,7 +170,7 @@ export type Session = {
 };
 
 export type BilkaClient = {
-  searchProducts(request: SearchRequest): Promise<Product[]>;
+  searchProducts(request: SearchRequest): Promise<SearchResult>;
   /**
    * One product by id, with the store's prices when `storeId` is given.
    * Null when the index has no such product.
@@ -426,18 +453,28 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
   }
 
   return {
-    async searchProducts({ storeId, query, limit, onlyInStock, onlyOffers }) {
+    async searchProducts({ storeId, query, filters: wanted, page, limit }) {
       const filters = [`isInAssortmentIn:${storeId}`, "nonsearchable:false"];
-      if (onlyInStock) filters.push(`inStockStore:${storeId}`);
-      if (onlyOffers) filters.push(`isInOffer:${storeId}`);
+      if (wanted.onlyInStock) filters.push(`inStockStore:${storeId}`);
+      if (wanted.onlyOffers) filters.push(`isInOffer:${storeId}`);
+      // A global flag: the leaflet is the same in every store (docs/research.md §3).
+      if (wanted.onlyLeaflet) filters.push("isInCurrentLeaflet:true");
       const data = await algolia("Product search", `/1/indexes/${ALGOLIA_PRODUCT_INDEX}/query`, {
         query,
         hitsPerPage: limit,
+        // Algolia counts pages from 0.
+        page: page - 1,
         filters: filters.join(" AND "),
         attributesToRetrieve: PRODUCT_ATTRIBUTES.concat(`storeData.${storeId}`),
       });
       const hits = arrayField(data, "hits", "Product search answered without results");
-      return hits.map((hit) => toProduct(hit as AlgoliaProduct, storeId));
+      const { nbPages, nbHits } = data as { nbPages?: unknown; nbHits?: unknown };
+      return {
+        products: hits.map((hit) => toProduct(hit as AlgoliaProduct, storeId)),
+        page,
+        totalPages: typeof nbPages === "number" ? nbPages : 0,
+        totalResults: typeof nbHits === "number" ? nbHits : hits.length,
+      };
     },
 
     async getProduct({ productId, storeId }) {
@@ -686,6 +723,7 @@ type AlgoliaProduct = {
   unitOfMeasurePrice?: number;
   unitOfMeasurePriceUnits?: string;
   isInOffer?: (number | string)[];
+  isInCurrentLeaflet?: boolean;
   inStockStore?: (number | string)[];
   deepestCategoryPath?: string;
   isInAssortmentIn?: (number | string)[];
@@ -726,6 +764,7 @@ const PRODUCT_ATTRIBUTES = [
   "unitOfMeasurePrice",
   "unitOfMeasurePriceUnits",
   "isInOffer",
+  "isInCurrentLeaflet",
   "inStockStore",
   "deepestCategoryPath",
 ];
@@ -779,6 +818,9 @@ function toProduct(hit: AlgoliaProduct, storeId: string | undefined): Product {
     unit: normaliseUnit(store?.unitsOfMeasurePriceUnit ?? hit.unitOfMeasurePriceUnits),
     on_offer: storeId === undefined ? null : includesStore(hit.isInOffer, storeId),
     offer: PLACEHOLDER_OFFER_LABELS.has(offerText.toLowerCase()) ? null : offerText,
+    offer_from: store?.offerFrom || null,
+    offer_until: store?.offerUntil || null,
+    in_leaflet: hit.isInCurrentLeaflet === true,
     in_stock:
       storeId === undefined ? null : (store?.inStock ?? includesStore(hit.inStockStore, storeId)),
     category: hit.deepestCategoryPath || null,
@@ -786,7 +828,6 @@ function toProduct(hit: AlgoliaProduct, storeId: string | undefined): Product {
 }
 
 function toProductDetails(hit: AlgoliaProduct, storeId: string | undefined): ProductDetails {
-  const store = storeId === undefined ? undefined : hit.storeData?.[storeId];
   const labels = [
     ...(hit.properties ?? []),
     ...(hit.attributes ?? []).map((attribute) => attribute.attributeName ?? ""),
@@ -797,8 +838,6 @@ function toProductDetails(hit: AlgoliaProduct, storeId: string | undefined): Pro
     ...toProduct(hit, storeId),
     display_name: hit.productName || null,
     manufacturer: hit.manufacturer || null,
-    offer_from: store?.offerFrom || null,
-    offer_until: store?.offerUntil || null,
     in_store_assortment:
       storeId === undefined ? null : includesStore(hit.isInAssortmentIn, storeId),
     product_type: hit.productType || null,

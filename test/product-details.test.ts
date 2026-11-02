@@ -27,6 +27,7 @@ test("get_product_details returns the product's index record, cleaned up, with D
       offer: null,
       offer_from: null,
       offer_until: null,
+      in_leaflet: false,
       in_stock: true,
       in_store_assortment: true,
       category: "Mejeri & køl > Mejeri > Yoghurt & syrnede mælkeprodukter > Skyr",
@@ -179,6 +180,29 @@ test("a discounted product shows the offer and its period at the store", async (
     labels: ["Nøglehul"],
     country_of_origin: ["Danmark"],
   });
+});
+
+test("a leaflet product says it's in this week's Bilka Avisen", async () => {
+  const { callTool } = await connect();
+
+  const { json } = await callTool("get_product_details", { product_id: "91454" });
+
+  expect(json.product).toMatchObject({
+    name: "Ristorante Pizza Salame",
+    in_leaflet: true,
+    offer: "Spar 7,95",
+    offer_from: "2026-10-23",
+    offer_until: "2026-11-05",
+  });
+});
+
+test("without a store, a leaflet product is still in the leaflet, but has no offer dates", async () => {
+  const { callTool } = await connect({ storeId: undefined });
+
+  const { json } = await callTool("get_product_details", { product_id: "91454" });
+
+  // The leaflet flag is global; the offer and its dates belong to a store.
+  expect(json.product).toMatchObject({ in_leaflet: true, offer_from: null, offer_until: null });
 });
 
 test("with no store configured, details still work with Bilka's regular prices", async () => {

@@ -541,7 +541,8 @@ export class FakeBilka {
   /**
    * Algolia's single-index query. Text relevance is Algolia's job, so the fake
    * ignores the query text and returns every product that passes `filters`,
-   * limited by `hitsPerPage` and projected by `attributesToRetrieve`.
+   * paged by `hitsPerPage` and `page` (0-based) and projected by
+   * `attributesToRetrieve`. A page past the end is empty, with the totals.
    */
   private algoliaQuery(request: RecordedRequest): Response {
     const denied = checkAlgoliaKey(request);
@@ -554,18 +555,20 @@ export class FakeBilka {
       query?: string;
       filters?: string;
       hitsPerPage?: number;
+      page?: number;
       attributesToRetrieve?: string[];
     };
     const filter = parseFilters(params.filters ?? "");
     const hitsPerPage = params.hitsPerPage ?? 20;
+    const page = params.page ?? 0;
     const matching = this.products.filter(filter);
     const hits = matching
-      .slice(0, hitsPerPage)
+      .slice(page * hitsPerPage, (page + 1) * hitsPerPage)
       .map((product) => project(product, params.attributesToRetrieve ?? ["*"]));
     return jsonResponse({
       hits,
       nbHits: matching.length,
-      page: 0,
+      page,
       nbPages: Math.ceil(matching.length / hitsPerPage),
       hitsPerPage,
       query: params.query ?? "",
