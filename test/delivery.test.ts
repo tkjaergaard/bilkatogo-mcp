@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { jsonResponse, loadFixture, LOGIN_TOKEN, JWT } from "./support/fake-bilka.ts";
 import { connect } from "./support/harness.ts";
+import { memorySettings } from "./support/settings.ts";
 
 const withLoginToken = { credentials: { env: { BILKATOGO_LOGIN_TOKEN: LOGIN_TOKEN } } };
 // No fixed store, so search follows the cart's store.
@@ -160,6 +161,31 @@ test("set_delivery_place to another store's place says so and moves search to th
   expect(search?.json()).toMatchObject({
     filters: expect.stringContaining("isInAssortmentIn:1653"),
   });
+});
+
+test("set_delivery_place saves the cart's store as the selection, over BILKATOGO_STORE_ID", async () => {
+  const settingsStore = memorySettings();
+  const { callTool } = await connect({
+    storeId: undefined,
+    settingsStore,
+    credentials: { env: { BILKATOGO_LOGIN_TOKEN: LOGIN_TOKEN, BILKATOGO_STORE_ID: "1651" } },
+  });
+  expect((await callTool("search_products", { query: "skyr" })).json.store_id).toBe("1651");
+
+  await callTool("set_delivery_place", { place_id: "3192" });
+
+  expect((await callTool("search_products", { query: "skyr" })).json.store_id).toBe("1653");
+  expect(settingsStore.saved).toEqual([{ storeId: "1653" }]);
+});
+
+test("set_delivery_place's description says it changes the saved store, over BILKATOGO_STORE_ID", async () => {
+  const { client } = await connect();
+
+  const { tools } = await client.listTools();
+
+  const description = tools.find((tool) => tool.name === "set_delivery_place")?.description;
+  expect(description).toMatch(/saved store/i);
+  expect(description).toMatch(/BILKATOGO_STORE_ID/);
 });
 
 test("set_delivery_place says when the server's fixed store keeps search elsewhere", async () => {
