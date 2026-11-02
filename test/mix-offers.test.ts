@@ -115,6 +115,19 @@ test("a mix lists only products with the offer at the selected store, even out o
   expect(json.total_results).toBe(2);
 });
 
+test("a mix leaves out a product on offer at the store without the store's mix text", async () => {
+  const { callTool, bilka } = await connectWithMixes();
+  // Æbler hand-edited to be on offer at store 1653 (an everyday label, say)
+  // while the store still gives it no mix text.
+  const apples = bilka.products.find((p: { objectID: string }) => p.objectID === "18379");
+  apples.isInOffer.push(Number(STORE_ID));
+
+  const { json } = await callTool("search_products", { mix_offer_id: "2680" });
+
+  expect(ids(json.products)).toEqual(["18381", "50998"]);
+  for (const product of json.products) expect(product.mix).not.toBeNull();
+});
+
 test("a mix offer id that isn't all digits is rejected before anything is sent", async () => {
   const { callTool, bilka } = await connectWithMixes();
 

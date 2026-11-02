@@ -225,7 +225,11 @@ export type SearchFilters = {
   onlyLeaflet: boolean;
   /** A category path such as "Mejeri & køl > Pålæg", matching CATEGORY_PATH_PATTERN. */
   category?: string;
-  /** Only the products in this mix offer (all digits) that have the offer at the store. */
+  /**
+   * Only the products in this mix offer (all digits) that the store gives the
+   * mix text. The totals are Algolia's, so they can count a product on offer
+   * at the store that the page then leaves out for having no mix text.
+   */
   mixOfferId?: string;
 };
 
@@ -557,19 +561,19 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
   }
 
   return {
-    async searchProducts({ storeId, query, filters: wanted, sort, page, limit }) {
+    async searchProducts({ storeId, query, filters: requested, sort, page, limit }) {
       const filters = productFilters(storeId, {
-        ...wanted,
+        ...requested,
         // A mix id is the same in every store, but only some stores give the
         // product the offer: keep the mix to products on offer at this store.
-        onlyOffers: wanted.onlyOffers || wanted.mixOfferId !== undefined,
+        onlyOffers: requested.onlyOffers || requested.mixOfferId !== undefined,
       });
-      if (wanted.category !== undefined) filters.push(categoryFilter(wanted.category));
-      if (wanted.mixOfferId !== undefined) {
-        if (!MIX_OFFER_ID_PATTERN.test(wanted.mixOfferId)) {
-          throw new BilkaError(`Not a mix offer id: ${JSON.stringify(wanted.mixOfferId)}`);
+      if (requested.category !== undefined) filters.push(categoryFilter(requested.category));
+      if (requested.mixOfferId !== undefined) {
+        if (!MIX_OFFER_ID_PATTERN.test(requested.mixOfferId)) {
+          throw new BilkaError(`Not a mix offer id: ${JSON.stringify(requested.mixOfferId)}`);
         }
-        filters.push(`multipromos:${wanted.mixOfferId}`);
+        filters.push(`multipromos:${requested.mixOfferId}`);
       }
       const data = await algolia("Product search", `/1/indexes/${SORT_INDEXES[sort]}/query`, {
         query,
@@ -581,7 +585,14 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       });
       const hits = arrayField(data, "hits", "Product search answered without results");
       const { nbPages, nbHits } = data as { nbPages?: unknown; nbHits?: unknown };
-      const products = hits.map((hit) => toProduct(hit as AlgoliaProduct, storeId));
+      const shaped = hits.map((hit) => toProduct(hit as AlgoliaProduct, storeId));
+      // Being on offer at the store isn't enough: an everyday label counts as
+      // an offer too. A mix lists only products the store gives the mix text,
+      // the same condition that sets `mix`.
+      const products =
+        requested.mixOfferId === undefined
+          ? shaped
+          : shaped.filter((product) => product.mix !== null);
       return {
         products: sort === "relevance" ? products : cheapestFirst(products, sort),
         page,
@@ -590,8 +601,8 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       };
     },
 
-    async listCategories({ storeId, parent, filters: wanted }) {
-      const filters = productFilters(storeId, wanted);
+    async listCategories({ storeId, parent, filters: requested }) {
+      const filters = productFilters(storeId, requested);
       if (parent !== undefined) filters.push(categoryFilter(parent));
       // The children sit one level below the parent: lvl0 without one.
       const facet = `${HIERARCHY}.lvl${parent === undefined ? 0 : categoryLevel(parent) + 1}`;
@@ -875,12 +886,12 @@ function cheapestFirst(products: Product[], sort: "price" | "unit_price"): Produ
  * The Algolia filter terms every product query at `storeId` starts with: the
  * store's assortment, searchable products, and the flags that are on.
  */
-function productFilters(storeId: string, wanted: CategoryFilters): string[] {
+function productFilters(storeId: string, flags: CategoryFilters): string[] {
   const filters = [`isInAssortmentIn:${storeId}`, "nonsearchable:false"];
-  if (wanted.onlyInStock) filters.push(`inStockStore:${storeId}`);
-  if (wanted.onlyOffers) filters.push(`isInOffer:${storeId}`);
+  if (flags.onlyInStock) filters.push(`inStockStore:${storeId}`);
+  if (flags.onlyOffers) filters.push(`isInOffer:${storeId}`);
   // A global flag: the leaflet is the same in every store (docs/research.md §3).
-  if (wanted.onlyLeaflet) filters.push("isInCurrentLeaflet:true");
+  if (flags.onlyLeaflet) filters.push("isInCurrentLeaflet:true");
   return filters;
 }
 
