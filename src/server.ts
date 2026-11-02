@@ -103,7 +103,7 @@ const states = new WeakMap<ServerConfig, ConfigState>();
 function stateFor(config: ServerConfig): ConfigState {
   let state = states.get(config);
   if (state === undefined) {
-    const warn = config.warn ?? ((line: string) => console.error(`bilka-mcp: ${line}`));
+    const warn = config.warn ?? ((line: string) => console.error(`bilkatogo-mcp: ${line}`));
     const session = createSession({
       fetch: config.fetch,
       credentials: config.credentials,
@@ -177,7 +177,7 @@ function messageOf(error: unknown): string {
 export function createServer(config: ServerConfig): McpServer {
   const limits: Limits = { ...DEFAULT_LIMITS, ...config.limits };
   const server = new McpServer(
-    { name: "bilka-mcp", version: packageJson.version },
+    { name: "bilkatogo-mcp", version: packageJson.version },
     { supportedProtocolVersions: [MCP_PROTOCOL_VERSION, ...SUPPORTED_PROTOCOL_VERSIONS] },
   );
 

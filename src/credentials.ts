@@ -34,12 +34,12 @@ export type CredentialSources = {
   loginFile?: string | undefined;
 };
 
-/** This server's config directory: `$XDG_CONFIG_HOME/bilka-mcp`, by default `~/.config/bilka-mcp`. */
+/** This server's config directory: `$XDG_CONFIG_HOME/bilkatogo-mcp`, by default `~/.config/bilkatogo-mcp`. */
 export function configDir(env: Env): string {
-  return join(env.XDG_CONFIG_HOME || join(homedir(), ".config"), "bilka-mcp");
+  return join(env.XDG_CONFIG_HOME || join(homedir(), ".config"), "bilkatogo-mcp");
 }
 
-/** `$XDG_CONFIG_HOME/bilka-mcp/login.json`, by default `~/.config/bilka-mcp/login.json`. */
+/** `$XDG_CONFIG_HOME/bilkatogo-mcp/login.json`, by default `~/.config/bilkatogo-mcp/login.json`. */
 export function defaultLoginFile(env: Env): string {
   return join(configDir(env), "login.json");
 }

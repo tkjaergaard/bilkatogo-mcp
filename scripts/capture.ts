@@ -123,7 +123,7 @@ export type Answer = {
 function defaultOutDir(env: Env, now: Date): string {
   const cacheHome = env.XDG_CACHE_HOME || join(homedir(), ".cache");
   const stamp = now.toISOString().replace(/[:.]/g, "-");
-  return join(cacheHome, "bilka-mcp", "captures", stamp);
+  return join(cacheHome, "bilkatogo-mcp", "captures", stamp);
 }
 
 export async function runCapture(options: CaptureOptions): Promise<CaptureReport> {
@@ -163,7 +163,7 @@ export async function runCapture(options: CaptureOptions): Promise<CaptureReport
   if (!credentials.loginToken && !(credentials.email && credentials.password)) {
     log(
       "error: no credentials. Set BILKATOGO_EMAIL and BILKATOGO_PASSWORD, or BILKATOGO_LOGIN_TOKEN, " +
-        "or put them in ~/.config/bilka-mcp/login.json.",
+        "or put them in ~/.config/bilkatogo-mcp/login.json.",
     );
     report.exitCode = 2;
     return report;
@@ -646,9 +646,9 @@ const USAGE = `Usage: node scripts/capture.ts <cheap-product-id> [--out <dir>]
 
 Records raw BilkaToGo responses from your own account (see docs/capture.md).
 Credentials: BILKATOGO_EMAIL + BILKATOGO_PASSWORD, or BILKATOGO_LOGIN_TOKEN
-(skips password login), or ~/.config/bilka-mcp/login.json. Optional:
+(skips password login), or ~/.config/bilkatogo-mcp/login.json. Optional:
 BILKATOGO_STORE_ID (checks the product is sold at your store).
-Default output folder: \${XDG_CACHE_HOME:-~/.cache}/bilka-mcp/captures/<time>.`;
+Default output folder: \${XDG_CACHE_HOME:-~/.cache}/bilkatogo-mcp/captures/<time>.`;
 
 async function main(argv: string[]): Promise<number> {
   const positional: string[] = [];

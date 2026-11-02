@@ -1,0 +1,12 @@
+{
+  // Emits the published JavaScript into dist/: Node won't strip types from
+  // files under node_modules, which is where npx installs the package.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["src"]
+}

@@ -112,7 +112,7 @@ test("select_store reads the public store list without logging in", async () => 
 });
 
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "bilka-mcp-settings-"));
+  const dir = await mkdtemp(join(tmpdir(), "bilkatogo-mcp-settings-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -150,7 +150,7 @@ test("a store id given to the server explicitly wins over a selection", async ()
 });
 
 test("the selection is saved to a private settings file that the next run reads", async () => {
-  const file = join(await tempDir(), "bilka-mcp", "settings.json");
+  const file = join(await tempDir(), "bilkatogo-mcp", "settings.json");
   const first = await connect({ storeId: undefined, settingsStore: fileSettingsStore(file) });
 
   const result = await first.callTool("select_store", { store: "kolding" });

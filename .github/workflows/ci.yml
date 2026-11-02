@@ -25,3 +25,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      # Node won't strip types under node_modules, so npx runs the built
+      # JavaScript: pack the package and run it the way npx installs it.
+      - name: Run the packed package through npx
+        run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP"
+          npx -y --package="./bilkatogo-mcp-$(node -p 'require(process.env.GITHUB_WORKSPACE + "/package.json").version').tgz" bilkatogo-mcp --version

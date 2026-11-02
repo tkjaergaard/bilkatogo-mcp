@@ -199,14 +199,14 @@ test("after a restart, the remembered token logs in without the password", async
 
 /** A fresh temp directory, removed after the test. */
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "bilka-mcp-session-"));
+  const dir = await mkdtemp(join(tmpdir(), "bilkatogo-mcp-session-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
   return dir;
 }
 
 test("the session file holds the working token, readable only by its owner, written atomically", async () => {
   const dir = await tempDir();
-  const file = join(dir, "bilka-mcp", "session.json");
+  const file = join(dir, "bilkatogo-mcp", "session.json");
   const { callTool } = await connect({ ...withPassword, sessionStore: fileSessionStore(file) });
 
   expect((await callTool("get_cart")).isError).toBe(false);
@@ -214,7 +214,7 @@ test("the session file holds the working token, readable only by its owner, writ
   expect(JSON.parse(await readFile(file, "utf8"))).toEqual({ loginToken: LOGIN_TOKEN });
   expect((await stat(file)).mode & 0o777).toBe(0o600);
   // Nothing left over from the temp-file-and-rename write.
-  expect(await readdir(join(dir, "bilka-mcp"))).toEqual(["session.json"]);
+  expect(await readdir(join(dir, "bilkatogo-mcp"))).toEqual(["session.json"]);
 
   // A restart reads it back: no password login needed.
   const restarted = await connect({
