@@ -130,9 +130,13 @@ function stateFor(config: ServerConfig): ConfigState {
       },
       select: async (storeId) => {
         selected = Promise.resolve(storeId);
-        const lasts = "The selection applies until the server restarts.";
+        const untilRestart = "The selection applies until the server restarts.";
         if (settings === undefined) {
-          return { saved: false, saved_to: null, note: `No settings file is configured. ${lasts}` };
+          return {
+            saved: false,
+            saved_to: null,
+            note: `No settings file is configured. ${untilRestart}`,
+          };
         }
         try {
           await settings.save({ storeId });
@@ -142,7 +146,7 @@ function stateFor(config: ServerConfig): ConfigState {
           return {
             saved: false,
             saved_to: null,
-            note: `Saving to ${settings.location} failed. ${lasts}`,
+            note: `Saving to ${settings.location} failed. ${untilRestart}`,
           };
         }
       },
@@ -492,8 +496,8 @@ export function createServer(config: ServerConfig): McpServer {
     async ({ store }) => {
       const stores = await bilka.listStores();
       const matches = matchStores(stores, store);
-      const [only] = matches;
-      if (only === undefined) {
+      const [firstMatch] = matches;
+      if (firstMatch === undefined) {
         throw new Error(
           `No Bilka store matches ${JSON.stringify(store)}. ` +
             "Use list_stores to see the stores, their ids and pickup points.",
@@ -508,8 +512,8 @@ export function createServer(config: ServerConfig): McpServer {
           candidates: matches,
         });
       }
-      const outcome = await state.select(only.store_id);
-      return jsonResult({ store_id: only.store_id, name: only.name, ...outcome });
+      const outcome = await state.select(firstMatch.store_id);
+      return jsonResult({ store_id: firstMatch.store_id, name: firstMatch.name, ...outcome });
     },
   );
 

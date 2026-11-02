@@ -734,7 +734,9 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       // The answer is scrubbed, so a home address shows only its kind.
       const now = toPlace(answer.activeAddress, placeId);
       if (now === null || now.kind !== place.kind || now.place_id !== placeId) {
-        throw new BilkaError(`${what} failed: Bilka didn't switch the cart${saying(answer.msg)}`);
+        throw new BilkaError(
+          `${what} failed: Bilka didn't switch the cart${bilkaSays(answer.msg)}`,
+        );
       }
       return { place, changed: true, previousStoreId };
     },
@@ -752,7 +754,7 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       });
       const set = chosenSlot(answer);
       if (set?.date !== slot.date || set.start !== slot.start) {
-        throw new BilkaError(`${what} failed: Bilka didn't set the slot${saying(answer.msg)}`);
+        throw new BilkaError(`${what} failed: Bilka didn't set the slot${bilkaSays(answer.msg)}`);
       }
       return { slot: set, text: text(answer.delivery_message) };
     },
@@ -793,8 +795,8 @@ function toLineChange(what: string, productId: string, data: Record<string, unkn
   };
 }
 
-/** ": <Bilka's message>" when the answer carries one, for error messages. */
-function saying(message: unknown): string {
+/** ". Bilka says: <message>" when the answer carries one, for error messages. */
+function bilkaSays(message: unknown): string {
   const said = text(message);
   return said === null ? "" : `. Bilka says: ${JSON.stringify(said)}`;
 }
