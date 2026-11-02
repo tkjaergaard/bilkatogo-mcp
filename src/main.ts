@@ -6,6 +6,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { defaultLoginFile } from "./credentials.ts";
 import { createServer, type ServerConfig } from "./server.ts";
+import { defaultSessionFile, fileSessionStore } from "./session-store.ts";
 
 // Anything that logs by accident must not corrupt the protocol stream.
 console.log = console.error;
@@ -22,6 +23,8 @@ const config: ServerConfig = {
   storeId,
   // Read only when a tool first needs the account.
   credentials: { env: process.env, loginFile: defaultLoginFile(process.env) },
+  // Remembers the login token that worked, so a restart skips the password login.
+  sessionStore: fileSessionStore(defaultSessionFile(process.env)),
   warn: (line) => console.error(`bilka-mcp: ${line}`),
 };
 

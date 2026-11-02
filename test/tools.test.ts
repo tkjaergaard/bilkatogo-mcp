@@ -10,6 +10,8 @@ const EXPECTED_TOOLS: Record<string, "read-only" | "destructive"> = {
   get_cart: "read-only",
   set_cart_quantity: "destructive",
   set_cart_quantities: "destructive",
+  get_order_history: "read-only",
+  get_order_details: "read-only",
 };
 
 test("the server offers exactly the pinned tools", async () => {

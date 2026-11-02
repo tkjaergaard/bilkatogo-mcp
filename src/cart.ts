@@ -61,12 +61,15 @@ type ShopCart = {
     minimum_left_text?: string;
     delivery_comment?: unknown;
   };
-  lines?: { headline?: string; lines?: { orderlines?: ShopOrderLine[] }[] }[];
+  lines?: ShopLineGroup[];
   deliveryAddress?: unknown;
   deliveryDate?: { delivery_message?: string } | null;
 };
 
-type ShopOrderLine = {
+/** The line groups of a cart or order (`lines[].lines[].orderlines[]`). */
+export type ShopLineGroup = { headline?: string; lines?: { orderlines?: ShopOrderLine[] }[] };
+
+export type ShopOrderLine = {
   quantity?: number;
   amount?: number;
   unitprice?: number;
@@ -78,6 +81,8 @@ type ShopOrderLine = {
     brand?: string;
     units?: number;
     unitsOfMeasure?: string;
+    /** The offer the line was bought on, e.g. "Plus pris 10,00". */
+    cpOfferMsg?: string;
   };
 };
 
@@ -85,18 +90,10 @@ export function toCart(data: unknown): Cart {
   const cart = (data ?? {}) as ShopCart;
   const lines: CartLine[] = [];
   const fees: CartFee[] = [];
-  for (const group of cart.lines ?? []) {
-    const headline = group.headline?.trim() || null;
-    for (const line of group.lines ?? []) {
-      for (const orderline of line.orderlines ?? []) {
-        const shaped = toCartLine(orderline, headline);
-        if (headline?.toLowerCase() === SERVICES_HEADLINE) {
-          fees.push({ name: shaped.name, amount: shaped.line_total });
-        } else {
-          lines.push(shaped);
-        }
-      }
-    }
+  for (const { orderline, group, isFee } of orderLines(cart.lines)) {
+    const shaped = toCartLine(orderline, group);
+    if (isFee) fees.push({ name: shaped.name, amount: shaped.line_total });
+    else lines.push(shaped);
   }
   return {
     currency: "DKK",
@@ -128,7 +125,24 @@ export function summariseCart(cart: Cart): CartSummary {
   };
 }
 
-function toCartLine(orderline: ShopOrderLine, group: string | null): CartLine {
+/**
+ * Every order line in Bilka's nested groups, in order, with its group's
+ * heading. Lines under "Services" are fees, not groceries. Carts and orders
+ * share this shape.
+ */
+export function* orderLines(
+  groups: ShopLineGroup[] | undefined,
+): Generator<{ orderline: ShopOrderLine; group: string | null; isFee: boolean }> {
+  for (const group of groups ?? []) {
+    const headline = group.headline?.trim() || null;
+    const isFee = headline?.toLowerCase() === SERVICES_HEADLINE;
+    for (const line of group.lines ?? []) {
+      for (const orderline of line.orderlines ?? []) yield { orderline, group: headline, isFee };
+    }
+  }
+}
+
+export function toCartLine(orderline: ShopOrderLine, group: string | null): CartLine {
   const product = orderline.product ?? {};
   const units = product.units;
   const measure = product.unitsOfMeasure?.trim();

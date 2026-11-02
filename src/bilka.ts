@@ -4,6 +4,12 @@
 
 import { type Cart, toCart } from "./cart.ts";
 import { kroner } from "./money.ts";
+import {
+  type OrderDetails,
+  type OrderHistoryPage,
+  toOrderDetails,
+  toOrderHistoryPage,
+} from "./orders.ts";
 import { scrubPersonalData } from "./scrub.ts";
 
 export const ALGOLIA_APP_ID = "F9VBJLR1BK";
@@ -25,6 +31,13 @@ export const REQUEST_TIMEOUT_MS = 30_000;
 
 /** A Bilka product id: Algolia's numeric `objectID`. */
 export const PRODUCT_ID_PATTERN = /^\d{1,12}$/;
+
+/**
+ * A BilkaToGo order id. Live ids are 12 digits (e.g. "900000000001"); a little
+ * slack either side keeps older or newer ids working, while still refusing
+ * anything that isn't an id before it reaches Bilka.
+ */
+export const ORDER_ID_PATTERN = /^\d{6,16}$/;
 
 // Offer labels that say nothing; the price fields tell the story instead.
 const PLACEHOLDER_OFFER_LABELS = new Set(["", "se her"]);
@@ -113,6 +126,8 @@ export type SearchRequest = {
 /** Hands the client a JWT for shop calls that need the account. */
 export type Session = {
   jwt(): Promise<string>;
+  /** The shop rejected this JWT: the next `jwt()` logs in afresh. */
+  rejected(jwt: string): void;
 };
 
 export type BilkaClient = {
@@ -129,6 +144,10 @@ export type BilkaClient = {
   listStores(): Promise<Store[]>;
   /** The logged-in cart, with personal data already scrubbed. */
   getCart(): Promise<Cart>;
+  /** One page of the account's past orders, newest first, scrubbed. */
+  getOrderHistory(request: { offset: number; limit: number }): Promise<OrderHistoryPage>;
+  /** Everything in one past order, scrubbed. Null when the account has no such order. */
+  getOrderDetails(orderId: string): Promise<OrderDetails | null>;
   /**
    * Sets one product's cart line to exactly `quantity`; 0 removes the line.
    * One request, no retries: a failure throws a BilkaError whose `retryable`
@@ -174,8 +193,9 @@ export class BilkaError extends Error {
 export class NotLoggedInError extends BilkaError {
   constructor(what: string) {
     super(
-      `${what} failed: Bilka says the session isn't logged in. The login token has probably ` +
-        "expired; copy a fresh one from the browser and set BILKATOGO_LOGIN_TOKEN.",
+      `${what} failed: Bilka says the session isn't logged in, even after logging in again. ` +
+        "Try again later; if it keeps happening, log in on bilkatogo.dk and copy a fresh login " +
+        "token into BILKATOGO_LOGIN_TOKEN.",
     );
     this.name = "NotLoggedInError";
   }
@@ -238,6 +258,39 @@ export async function exchangeLoginToken(
   return { rejected: { status: response.status, body } };
 }
 
+/**
+ * Logs in to Gigya with email and password (`accounts.login`) and returns the
+ * login token (`sessionInfo.cookieValue`). Checked live: it works headless
+ * (docs/research.md §3). Throws a BilkaError when Gigya can't be reached; a
+ * rejection comes back as the answer. The answer's account profile is never
+ * passed on.
+ */
+export async function passwordLogin(
+  fetch: typeof globalThis.fetch,
+  email: string,
+  password: string,
+): Promise<{ loginToken: string } | { rejected: GigyaAnswer }> {
+  const what = "BilkaToGo login (Gigya password login)";
+  const response = await send(fetch, what, `${GIGYA_HOST}/accounts.login`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      loginID: email,
+      password,
+      apiKey: GIGYA_API_KEY,
+      httpStatusCodes: "true",
+    }),
+  });
+  const data = await readJson(what, response).catch(() => undefined);
+  const body = isRecord(data) ? data : {};
+  const session = body.sessionInfo;
+  const token = isRecord(session) ? session.cookieValue : undefined;
+  if (response.ok && body.errorCode === 0 && typeof token === "string" && token) {
+    return { loginToken: token };
+  }
+  return { rejected: { status: response.status, body: { errorCode: body.errorCode } } };
+}
+
 export function createBilkaClient(options: { fetch: typeof fetch; session: Session }): BilkaClient {
   const { fetch, session } = options;
 
@@ -255,8 +308,9 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
 
   /**
    * A shop call that needs the account: the JWT goes in the `jwt_token` header
-   * and nothing else (no cookies; see docs/research.md §3). The answer is
-   * scrubbed of personal data before anything reads it.
+   * and nothing else (no cookies; see docs/research.md §3). When the shop says
+   * "not logged in", the session logs in afresh and the call is retried once.
+   * The answer is scrubbed of personal data before anything reads it.
    */
   async function shopJson(
     what: string,
@@ -264,14 +318,17 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
     params: Record<string, string>,
     init: RequestInit = { method: "GET" },
   ): Promise<Record<string, unknown>> {
-    const jwt = await session.jwt();
-    const data = await requestJson(what, shopUrl(endpoint, params), {
-      ...init,
-      headers: { ...(init.headers as Record<string, string>), jwt_token: jwt },
-    });
-    if (!isRecord(data)) throw new BilkaError(`${what} answered with something unexpected`);
-    if (isNotLoggedIn(data)) throw new NotLoggedInError(what);
-    return scrubPersonalData(data) as Record<string, unknown>;
+    for (let attempt = 1; ; attempt++) {
+      const jwt = await session.jwt();
+      const data = await requestJson(what, shopUrl(endpoint, params), {
+        ...init,
+        headers: { ...(init.headers as Record<string, string>), jwt_token: jwt },
+      });
+      if (!isRecord(data)) throw new BilkaError(`${what} answered with something unexpected`);
+      if (!isNotLoggedIn(data)) return scrubPersonalData(data) as Record<string, unknown>;
+      if (attempt === 2) throw new NotLoggedInError(what);
+      session.rejected(jwt);
+    }
   }
 
   /** A shop API URL. The website adds `u=w` to every shop call, so do we. */
@@ -353,6 +410,22 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
         fullCart: "0",
       });
       return toLineChange(what, productId, data);
+    },
+
+    async getOrderHistory({ offset, limit }) {
+      // POST, as the website and nickknissen send it (docs/research.md §3).
+      const data = await shopJson(
+        "Order history",
+        "v7/OrderHistory",
+        { limit: String(limit), offset: String(offset), muah: "1", ordertype: "dibs,pgw" },
+        { method: "POST" },
+      );
+      return toOrderHistoryPage(data, { offset, limit });
+    },
+
+    async getOrderDetails(orderId) {
+      const data = await shopJson("Order details", "v7/OrderDetails", { orderId });
+      return isRecord(data.order) ? toOrderDetails(data.order) : null;
     },
   };
 }

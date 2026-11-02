@@ -346,7 +346,10 @@ test("set_cart_quantities stops at an expired login instead of failing every ite
   });
 
   expect(result.isError).toBe(false);
-  expect(bilka.calls("shop.ChangeLineCount")).toHaveLength(1);
+  // Only the first item reaches Bilka (the session refreshes and retries it once).
+  expect(
+    new Set(bilka.calls("shop.ChangeLineCount").map((c) => c.url.searchParams.get("productId"))),
+  ).toEqual(new Set(["199126"]));
   expect(sleeps).toEqual([]);
   const [first, ...rest] = result.json.items;
   expect(first).toMatchObject({ product_id: "199126", status: "failed", attempts: 1 });
