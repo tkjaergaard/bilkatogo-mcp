@@ -2,6 +2,7 @@
 
 import { McpServer, SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/server";
 import * as z from "zod";
+import packageJson from "../package.json" with { type: "json" };
 import { createSession } from "./auth.ts";
 import {
   CATEGORY_PATH_PATTERN,
@@ -172,7 +173,7 @@ function messageOf(error: unknown): string {
 export function createServer(config: ServerConfig): McpServer {
   const limits: Limits = { ...DEFAULT_LIMITS, ...config.limits };
   const server = new McpServer(
-    { name: "bilka-mcp", version: "0.1.0" },
+    { name: "bilka-mcp", version: packageJson.version },
     { supportedProtocolVersions: [MCP_PROTOCOL_VERSION, ...SUPPORTED_PROTOCOL_VERSIONS] },
   );
 

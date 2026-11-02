@@ -2,6 +2,7 @@
 // hosts (Algolia, Gigya, the BilkaToGo shop API). Callers never see raw HTTP
 // or øre.
 
+import packageJson from "../package.json" with { type: "json" };
 import { type Cart, toCart } from "./cart.ts";
 import {
   type ChosenSlot,
@@ -35,6 +36,10 @@ export const ALGOLIA_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_pricesort";
 export const ALGOLIA_UNIT_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_uompricesort";
 
 export const SHOP_HOST = "https://api.bilkatogo.dk";
+
+// Sent on every request, so Bilka can see what the traffic is and who to
+// contact. Never a browser's user agent: the server doesn't pose as one.
+const USER_AGENT = `bilka-mcp/${packageJson.version} (+https://github.com/tkjaergaard/bilka-mcp)`;
 
 export const GIGYA_HOST = "https://accounts.eu1.gigya.com";
 // BilkaToGo's public Gigya site key, the one the website sends.
@@ -371,8 +376,9 @@ export class UnreachableError extends BilkaError {
 }
 
 /**
- * Sends one request with the standard timeout. A timeout becomes a retryable
- * BilkaError, any other network failure an UnreachableError.
+ * Sends one request with the standard timeout and the project's User-Agent. A
+ * timeout becomes a retryable BilkaError, any other network failure an
+ * UnreachableError.
  */
 async function send(
   fetch: typeof globalThis.fetch,
@@ -380,8 +386,14 @@ async function send(
   url: string,
   init: RequestInit,
 ): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set("user-agent", USER_AGENT);
   try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    return await fetch(url, {
+      ...init,
+      headers,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") {
       throw new BilkaError(`${what} timed out`, { retryable: true, cause: error });
