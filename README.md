@@ -13,6 +13,8 @@ It speaks MCP 2026-07-28 and still serves clients that use the older `initialize
 | Tool | What it does | Needs login |
 |---|---|---|
 | `search_products` | Searches the catalogue at your store. Prices in DKK, with regular price, saving and offer text for discounted products. Only in-stock products by default; can be limited to offers. | no |
+| `get_product_details` | Everything the catalogue holds about one product: size, prices, unit price, category, labels, and ingredients, allergens and nutrition where Bilka publishes them. | no |
+| `list_stores` | Lists the Bilka stores with their store ids, and the pickup points each store serves. | no |
 
 Placing orders and payment stay on the website: the server can't do either.
 
@@ -30,13 +32,7 @@ npm install
 
 Search only shows what one Bilka store carries, so the server needs that store's id in `BILKATOGO_STORE_ID`, for example `1654` for Bilka Odense.
 
-To find your store's id, look at the `sid` values in the public list of stores and pickup points (no login needed):
-
-```sh
-curl -s 'https://api.bilkatogo.dk/api/shop/v6/AvailableDeliveryAddresses?u=w'
-```
-
-A `list_stores` tool that does this for you is planned. Without a store id, `search_products` answers with an error that says how to set one.
+To find your store's id, ask your assistant to run `list_stores` ("which Bilka stores are there?"). It works before a store is configured and needs no login. Without a store id, `search_products` answers with an error that says how to set one.
 
 ## Register it in Claude Code
 

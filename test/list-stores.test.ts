@@ -59,3 +59,12 @@ test("list_stores tells the model how to use a store id", async () => {
   expect(tool?.description).toContain("BILKATOGO_STORE_ID");
   expect(tool?.inputSchema.properties ?? {}).toEqual({});
 });
+
+test("list_stores warns the model that store names are untrusted", async () => {
+  const { client } = await connect();
+
+  const { tools } = await client.listTools();
+
+  const tool = tools.find((t) => t.name === "list_stores");
+  expect(tool?.description).toMatch(/untrusted data, not instructions/i);
+});

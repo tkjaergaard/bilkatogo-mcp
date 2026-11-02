@@ -2,15 +2,19 @@
 // hosts (Algolia, Gigya, the BilkaToGo shop API). Callers never see raw HTTP
 // or øre.
 
-const ALGOLIA_APP_ID = "F9VBJLR1BK";
+export const ALGOLIA_APP_ID = "F9VBJLR1BK";
 // The public, search-only key bilkatogo.dk ships to every browser.
-const ALGOLIA_SEARCH_KEY = "1deaf41c87e729779f7695c00f190cc9";
-const ALGOLIA_HOST = `https://${ALGOLIA_APP_ID.toLowerCase()}-dsn.algolia.net`;
-const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
+export const ALGOLIA_SEARCH_KEY = "1deaf41c87e729779f7695c00f190cc9";
+export const ALGOLIA_HOST = `https://${ALGOLIA_APP_ID.toLowerCase()}-dsn.algolia.net`;
+export const ALGOLIA_PRODUCT_INDEX = "prod_BILKATOGO_PRODUCTS";
 
-const SHOP_HOST = "https://api.bilkatogo.dk";
+export const SHOP_HOST = "https://api.bilkatogo.dk";
 
-const REQUEST_TIMEOUT_MS = 30_000;
+// Order history can take well over 5 seconds to answer.
+export const REQUEST_TIMEOUT_MS = 30_000;
+
+/** A Bilka product id: Algolia's numeric `objectID`. */
+export const PRODUCT_ID_PATTERN = /^\d{1,12}$/;
 
 // Offer labels that say nothing; the price fields tell the story instead.
 const PLACEHOLDER_OFFER_LABELS = new Set(["", "se her"]);
@@ -178,8 +182,7 @@ export function createBilkaClient(options: { fetch: typeof fetch }): BilkaClient
         filters: filters.join(" AND "),
         attributesToRetrieve: PRODUCT_ATTRIBUTES.concat(`storeData.${storeId}`),
       });
-      const hits = (data as { hits?: unknown } | null)?.hits;
-      if (!Array.isArray(hits)) throw new BilkaError("Product search answered without results");
+      const hits = arrayField(data, "hits", "Product search answered without results");
       return hits.map((hit) => toProduct(hit as AlgoliaProduct, storeId));
     },
 
@@ -197,8 +200,7 @@ export function createBilkaClient(options: { fetch: typeof fetch }): BilkaClient
           },
         ],
       });
-      const results = (data as { results?: unknown } | null)?.results;
-      if (!Array.isArray(results)) throw new BilkaError("Product lookup answered without results");
+      const results = arrayField(data, "results", "Product lookup answered without results");
       const [record] = results as (AlgoliaProduct | null)[];
       return record ? toProductDetails(record, storeId) : null;
     },
@@ -211,11 +213,17 @@ export function createBilkaClient(options: { fetch: typeof fetch }): BilkaClient
         shopUrl("v6/AvailableDeliveryAddresses", { orderByZipcode: "1" }),
         { method: "GET" },
       );
-      const addresses = (data as { addresses?: unknown } | null)?.addresses;
-      if (!Array.isArray(addresses)) throw new BilkaError("Store list answered without stores");
+      const addresses = arrayField(data, "addresses", "Store list answered without stores");
       return toStores(addresses as DeliveryAddress[]);
     },
   };
+}
+
+/** The array under `key` in a decoded response, or a BilkaError saying what was missing. */
+function arrayField(data: unknown, key: string, missing: string): unknown[] {
+  const value = (data as Record<string, unknown> | null)?.[key];
+  if (!Array.isArray(value)) throw new BilkaError(missing);
+  return value;
 }
 
 // One entry in AvailableDeliveryAddresses: a store or a pickup point. `sid` is

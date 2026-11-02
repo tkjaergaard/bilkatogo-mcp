@@ -14,6 +14,15 @@
 import { chmod, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import {
+  ALGOLIA_APP_ID,
+  ALGOLIA_HOST,
+  ALGOLIA_PRODUCT_INDEX,
+  ALGOLIA_SEARCH_KEY,
+  PRODUCT_ID_PATTERN,
+  REQUEST_TIMEOUT_MS,
+  SHOP_HOST,
+} from "../src/bilka.ts";
 
 // Endpoint facts, from docs/research.md §3 and the request shapes in
 // nickknissen/bilkatogo (src/bilkatogo/client.py, const.py) and
@@ -21,17 +30,14 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 const GIGYA_BASE_URL = "https://accounts.eu1.gigya.com";
 const GIGYA_API_KEY = "3_tA6BbV434FQqN73HnUG1KA3qFv8KiG4OqLu9eWPh7sKRqRizH5Vfv5Larmgrb4I2";
 const JWT_LIFETIME_SECONDS = "86400";
-const API_BASE_URL = "https://api.bilkatogo.dk/api";
+const API_BASE_URL = `${SHOP_HOST}/api`;
 const CART_PARAMS = { extra: "deliveryAddress,deliveryDate" };
 const ORDER_HISTORY_PARAMS = { limit: "5", offset: "0", muah: "1", ordertype: "dibs,pgw" };
-const ALGOLIA_QUERY_URL =
-  "https://f9vbjlr1bk-dsn.algolia.net/1/indexes/prod_BILKATOGO_PRODUCTS/query";
+const ALGOLIA_QUERY_URL = `${ALGOLIA_HOST}/1/indexes/${ALGOLIA_PRODUCT_INDEX}/query`;
 const ALGOLIA_HEADERS = {
-  "x-algolia-application-id": "F9VBJLR1BK",
-  "x-algolia-api-key": "1deaf41c87e729779f7695c00f190cc9",
+  "x-algolia-application-id": ALGOLIA_APP_ID,
+  "x-algolia-api-key": ALGOLIA_SEARCH_KEY,
 };
-// Order history can take well over 5 seconds to answer.
-const REQUEST_TIMEOUT_MS = 30_000;
 
 /** Values of keys matching this are replaced with "<secret>" before saving. */
 const SECRET_KEY = /token|cookievalue|jwt|password|secret|signature/i;
@@ -163,8 +169,8 @@ export async function runCapture(options: CaptureOptions): Promise<CaptureReport
   const scrub = (text: string) => scrubText(text, secrets);
   // Output also hides the email address; the saved files keep it for the
   // human to find and scrub.
-  const printable = new Set(credentials.email ? [credentials.email] : []);
-  const log = (line: string) => options.log(scrubText(scrub(line), printable));
+  const hiddenFromOutput = new Set(credentials.email ? [credentials.email] : []);
+  const log = (line: string) => options.log(scrubText(scrub(line), hiddenFromOutput));
 
   const report: CaptureReport = {
     startedAt: now().toISOString(),
@@ -182,7 +188,7 @@ export async function runCapture(options: CaptureOptions): Promise<CaptureReport
     exitCode: 0,
   };
 
-  if (!/^\d{1,12}$/.test(productId)) {
+  if (!PRODUCT_ID_PATTERN.test(productId)) {
     log(`error: the product id must be digits, like 18381 (got "${productId.slice(0, 20)}")`);
     report.exitCode = 64;
     return report;

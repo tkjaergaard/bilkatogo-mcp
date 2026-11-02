@@ -17,9 +17,7 @@ serveStdio(
   () =>
     createServer({
       fetch: globalThis.fetch,
-      sleep: async (ms) => {
-        await sleep(ms);
-      },
+      sleep: (ms) => sleep(ms),
       storeId,
     }),
   { onerror: (error) => console.error(`bilka-mcp: ${error.message}`) },
