@@ -405,23 +405,27 @@ export function createServer(config: ServerConfig): McpServer {
         filters: { onlyInStock: only_in_stock, onlyOffers: only_offers, onlyLeaflet: only_leaflet },
       });
       if (parent === undefined) return jsonResult({ store_id: storeId, parent: null, categories });
-      if (productCount === 0) {
+      const filtered = only_in_stock || only_offers || only_leaflet;
+      if (productCount === 0 && !filtered) {
         throw new Error(
           `No products at store ${storeId} match the category ${JSON.stringify(parent)}: ` +
-            "it doesn't exist there, or nothing in it passes the filters. Call " +
-            "list_categories without parent to see the top-level categories, and walk " +
-            "down from there.",
+            "it doesn't exist there. Call list_categories without parent to see the " +
+            "top-level categories, and walk down from there.",
         );
       }
+      // With filters on, no hits can't tell an empty category from a missing one.
+      const note =
+        productCount === 0
+          ? `Nothing in ${JSON.stringify(parent)} at store ${storeId} passes the filters ` +
+            "(only_in_stock, only_offers, only_leaflet). Try fewer filters, or check the " +
+            "category with list_categories without parent."
+          : `${JSON.stringify(parent)} has no subcategories: it's the deepest level. ` +
+            "Search in it with search_products and this category.";
       return jsonResult({
         store_id: storeId,
         parent,
         categories,
-        ...(categories.length === 0 && {
-          note:
-            `${JSON.stringify(parent)} has no subcategories: it's the deepest level. ` +
-            "Search in it with search_products and this category.",
-        }),
+        ...(categories.length === 0 && { note }),
       });
     },
   );

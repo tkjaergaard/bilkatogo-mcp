@@ -99,14 +99,36 @@ test("a parent at the deepest level has no children: an empty list and a note", 
   expect(result.json.note).toMatch(/search_products/);
 });
 
-test("a parent that matches nothing is an error pointing at list_categories without parent", async () => {
+test("without filters, a parent that matches nothing is an error pointing at list_categories without parent", async () => {
   const { callTool } = await connect();
 
-  const result = await callTool("list_categories", { parent: "Mejeri & køl > Ost & æg" });
+  const result = await callTool("list_categories", {
+    parent: "Mejeri & køl > Ost & æg",
+    only_in_stock: false,
+  });
 
   expect(result.isError).toBe(true);
   expect(result.text).toContain('"Mejeri & køl > Ost & æg"');
   expect(result.text).toMatch(/list_categories without parent/);
+});
+
+test("a real parent with nothing passing the filters is an empty list and a note, not an error", async () => {
+  const { callTool, bilka } = await connect();
+
+  // The fixture's only "Kød & fisk" product (169794) is out of stock at the store.
+  const inStock = await callTool("list_categories", { parent: "Kød & fisk" });
+  const inLeaflet = await callTool("list_categories", {
+    parent: "Kød & fisk",
+    only_in_stock: false,
+    only_leaflet: true,
+  });
+
+  for (const result of [inStock, inLeaflet]) {
+    expect(result.isError).toBe(false);
+    expect(result.json).toMatchObject({ store_id: STORE_ID, parent: "Kød & fisk", categories: [] });
+    expect(result.json.note).toMatch(/nothing .*passes the filters/i);
+  }
+  expect(bilka.calls("algolia.query")).toHaveLength(2);
 });
 
 test("only_leaflet counts this week's leaflet products per category, from one query with no hits", async () => {
