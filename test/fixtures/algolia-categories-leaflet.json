@@ -1,0 +1,43 @@
+{
+  "hits": [],
+  "nbHits": 2959,
+  "page": 0,
+  "nbPages": 0,
+  "hitsPerPage": 0,
+  "facets": {
+    "consumerFacingHierarchy.lvl0": {
+      "Personlig pleje": 746,
+      "Tøj & sko": 588,
+      "Mejeri & køl": 214,
+      "Drikkevarer": 213,
+      "Kolonial": 208,
+      "Slik & snacks": 161,
+      "Frost": 118,
+      "Fritid & sport": 116,
+      "Bolig & køkken": 113,
+      "Mad fra hele verden": 111,
+      "Brød & kager": 99,
+      "Dyremad": 89,
+      "Husholdning": 84,
+      "Baby & børn": 32,
+      "Kød & fisk": 31,
+      "Frugt & grønt": 13,
+      "Elektronik": 7,
+      "Kiosk": 6,
+      "Biludstyr": 4,
+      "Have": 3,
+      "Not Categorized": 2,
+      "Byggemarked": 1
+    }
+  },
+  "exhaustiveFacetsCount": true,
+  "exhaustiveNbHits": true,
+  "exhaustiveTypo": true,
+  "exhaustive": {
+    "facetsCount": true,
+    "nbHits": true,
+    "typo": true
+  },
+  "query": "",
+  "params": "hitsPerPage=0&filters=isInAssortmentIn%3A1653+AND+nonsearchable%3Afalse+AND+inStockStore%3A1653+AND+isInCurrentLeaflet%3Atrue&facets=%5B%22consumerFacingHierarchy.lvl0%22%5D&maxValuesPerFacet=1000"
+}

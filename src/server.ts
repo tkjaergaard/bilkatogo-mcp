@@ -4,7 +4,9 @@ import { McpServer, SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/se
 import * as z from "zod";
 import { createSession } from "./auth.ts";
 import {
+  CATEGORY_PATH_PATTERN,
   createBilkaClient,
+  MAX_CATEGORY_LEVELS,
   ORDER_ID_PATTERN,
   PRODUCT_ID_PATTERN,
   type Session,
@@ -186,7 +188,9 @@ export function createServer(config: ServerConfig): McpServer {
       title: "Search BilkaToGo products",
       description: [
         "Search or browse the BilkaToGo catalogue at the configured Bilka store.",
-        "Give a `query`, or leave it out and browse with `only_leaflet` or `only_offers`.",
+        "Give a `query`, or leave it out and browse with `category`, `only_leaflet` or `only_offers`.",
+        '`category` is a full path such as "Mejeri & køl > Pålæg", from list_categories or from a',
+        "product's own `category`; it combines with the other inputs.",
         "`only_leaflet` means this week's Bilka Avisen (the leaflet) and nothing else.",
         "`only_offers` is much broader: anything with an offer text, including everyday price",
         'labels such as "Skarp pris". Each product\'s `in_leaflet` tells the two apart.',
@@ -196,7 +200,7 @@ export function createServer(config: ServerConfig): McpServer {
         "Only products the store carries are returned; by default only those in stock.",
         "Results come a page at a time: the answer has `page`, `total_pages` and `total_results`;",
         "ask for the next `page` to see more.",
-        untrustedText("Product names, descriptions and offer texts"),
+        untrustedText("Product names, descriptions, category names and offer texts"),
       ].join(" "),
       inputSchema: z
         .object({
@@ -234,20 +238,39 @@ export function createServer(config: ServerConfig): McpServer {
             .boolean()
             .default(false)
             .describe("Return only products in this week's Bilka Avisen (the leaflet)."),
+          category: categorySchema
+            .optional()
+            .describe(
+              'Return only products in this category, e.g. "Mejeri & køl > Pålæg": a `category` ' +
+                "from list_categories or from a product.",
+            ),
         })
         // Without any of these, a search would page through the whole catalogue.
-        .refine((input) => input.query !== undefined || input.only_leaflet || input.only_offers, {
-          message:
-            "Give a query, or narrow the search with only_leaflet: true or only_offers: true.",
-        }),
+        .refine(
+          (input) =>
+            input.query !== undefined ||
+            input.category !== undefined ||
+            input.only_leaflet ||
+            input.only_offers,
+          {
+            message:
+              "Give a query, or narrow the search with a category, only_leaflet: true or " +
+              "only_offers: true.",
+          },
+        ),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ query, limit, page, only_in_stock, only_offers, only_leaflet }) => {
+    async ({ query, limit, page, only_in_stock, only_offers, only_leaflet, category }) => {
       const storeId = requireStoreId(await state.storeId());
       const found = await bilka.searchProducts({
         storeId,
         query: query ?? "",
-        filters: { onlyInStock: only_in_stock, onlyOffers: only_offers, onlyLeaflet: only_leaflet },
+        filters: {
+          onlyInStock: only_in_stock,
+          onlyOffers: only_offers,
+          onlyLeaflet: only_leaflet,
+          category,
+        },
         page,
         limit: Math.min(limit, limits.maxSearchResults),
       });
@@ -258,6 +281,72 @@ export function createServer(config: ServerConfig): McpServer {
         total_pages: found.totalPages,
         total_results: found.totalResults,
         products: found.products,
+      });
+    },
+  );
+
+  server.registerTool(
+    "list_categories",
+    {
+      title: "List BilkaToGo categories",
+      description: [
+        "List the categories of the BilkaToGo shop's menu at the configured Bilka store,",
+        "each with how many products match there, largest first.",
+        "Without `parent` it lists the top level; with `parent` the categories directly under it,",
+        "so walk down one level at a time.",
+        'Each `category` is a full path such as "Mejeri & køl > Pålæg": pass it to',
+        "search_products as `category` to browse or search in it, or as `parent` here.",
+        "`only_leaflet` counts only this week's Bilka Avisen (the leaflet), which shows where",
+        'this week\'s deals are; `only_offers` also counts everyday price labels such as "Skarp pris".',
+        untrustedText("Category names"),
+      ].join(" "),
+      inputSchema: z.object({
+        parent: categorySchema
+          .optional()
+          .describe(
+            'List the categories directly under this one, e.g. "Mejeri & køl". ' +
+              "Leave it out for the top level.",
+          ),
+        only_in_stock: z
+          .boolean()
+          .default(true)
+          .describe("Count only products in stock at the store."),
+        only_offers: z
+          .boolean()
+          .default(false)
+          .describe("Count only products on offer at the store."),
+        only_leaflet: z
+          .boolean()
+          .default(false)
+          .describe("Count only products in this week's Bilka Avisen (the leaflet)."),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ parent, only_in_stock, only_offers, only_leaflet }) => {
+      const storeId = requireStoreId(await state.storeId());
+      const { categories, productCount } = await bilka.listCategories({
+        storeId,
+        parent,
+        filters: { onlyInStock: only_in_stock, onlyOffers: only_offers, onlyLeaflet: only_leaflet },
+      });
+      if (parent === undefined) return jsonResult({ store_id: storeId, parent: null, categories });
+      if (productCount === 0) {
+        throw new Error(
+          `No products at store ${storeId} match the category ${JSON.stringify(parent)}: ` +
+            "it doesn't exist there, or nothing in it passes the filters. Call " +
+            "list_categories without parent to see the top-level categories, and walk " +
+            "down from there.",
+        );
+      }
+      return jsonResult({
+        store_id: storeId,
+        parent,
+        categories,
+        ...(categories.length === 0 && {
+          note:
+            `${JSON.stringify(parent)} has no subcategories: it's the deepest level. ` +
+            "Search in it with search_products and this category.",
+        }),
       });
     },
   );
@@ -753,6 +842,17 @@ function matchStores(stores: Store[], query: string): Store[] {
     ),
   );
 }
+
+// A category path, as list_categories and products give it.
+const categorySchema = z
+  .string()
+  .trim()
+  .regex(
+    CATEGORY_PATH_PATTERN,
+    'A category is a path such as "Mejeri & køl > Pålæg", from list_categories or a ' +
+      `product's category: up to ${MAX_CATEGORY_LEVELS} names joined by " > ", ` +
+      "without double quotes or backslashes.",
+  );
 
 // A product id, as search results, the cart and orders give it.
 const productIdSchema = z

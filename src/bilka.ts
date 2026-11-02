@@ -51,6 +51,26 @@ export const PRODUCT_ID_PATTERN = /^\d{1,12}$/;
  */
 export const ORDER_ID_PATTERN = /^\d{6,16}$/;
 
+/**
+ * The deepest a category path goes: five levels, `consumerFacingHierarchy.lvl0`
+ * to `lvl4`. Groceries stop at lvl3; lvl4 exists live in e.g. "Tøj & sko"
+ * (docs/research.md §3).
+ */
+export const MAX_CATEGORY_LEVELS = 5;
+
+// One level's name: no double quote or backslash (they could end the quoted
+// filter value), no ">" or control characters, no space at either end.
+const CATEGORY_NAME = String.raw`[^\s"\\>\p{Cc}](?:[^"\\>\p{Cc}]*[^\s"\\>\p{Cc}])?`;
+
+/**
+ * A category path such as "Mejeri & køl > Pålæg": one to five names joined by
+ * " > ". Anything else is refused before it can reach an Algolia filter.
+ */
+export const CATEGORY_PATH_PATTERN = new RegExp(
+  `^${CATEGORY_NAME}(?: > ${CATEGORY_NAME}){0,${MAX_CATEGORY_LEVELS - 1}}$`,
+  "u",
+);
+
 // Offer labels that say nothing; the price fields tell the story instead.
 const PLACEHOLDER_OFFER_LABELS = new Set(["", "se her"]);
 
@@ -85,7 +105,10 @@ export type Product = {
   in_leaflet: boolean;
   /** Null when no store was given. */
   in_stock: boolean | null;
-  /** e.g. "Mejeri & køl > Mejeri > Skyr". */
+  /**
+   * The deepest menu category, e.g. "Mejeri & køl > Pålæg > Kødpålæg": a valid
+   * `category` for search_products and `parent` for list_categories.
+   */
   category: string | null;
 };
 
@@ -160,6 +183,28 @@ export type SearchFilters = {
   onlyOffers: boolean;
   /** This week's Bilka Avisen (the leaflet). */
   onlyLeaflet: boolean;
+  /** A category path such as "Mejeri & køl > Pålæg", matching CATEGORY_PATH_PATTERN. */
+  category?: string;
+};
+
+/** Which products a category count includes. */
+export type CategoryFilters = Pick<SearchFilters, "onlyInStock" | "onlyOffers" | "onlyLeaflet">;
+
+/** One category in the shop's menu, with how many products match. */
+export type Category = {
+  /** The full path, e.g. "Mejeri & køl > Pålæg": a valid search `category`. */
+  category: string;
+  /** The last segment, e.g. "Pålæg". */
+  name: string;
+  product_count: number;
+};
+
+/** One level of the category tree at one store. */
+export type CategoryList = {
+  /** Largest first. */
+  categories: Category[];
+  /** How many products match in the parent category, or in all of them at the top. */
+  productCount: number;
 };
 
 /** Hands the client a JWT for shop calls that need the account. */
@@ -171,6 +216,16 @@ export type Session = {
 
 export type BilkaClient = {
   searchProducts(request: SearchRequest): Promise<SearchResult>;
+  /**
+   * The direct children of `parent` in the shop's category tree, or the top
+   * level without one, with product counts at the store.
+   */
+  listCategories(request: {
+    storeId: string;
+    /** A category path matching CATEGORY_PATH_PATTERN. */
+    parent?: string;
+    filters: CategoryFilters;
+  }): Promise<CategoryList>;
   /**
    * One product by id, with the store's prices when `storeId` is given.
    * Null when the index has no such product.
@@ -454,11 +509,8 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
 
   return {
     async searchProducts({ storeId, query, filters: wanted, page, limit }) {
-      const filters = [`isInAssortmentIn:${storeId}`, "nonsearchable:false"];
-      if (wanted.onlyInStock) filters.push(`inStockStore:${storeId}`);
-      if (wanted.onlyOffers) filters.push(`isInOffer:${storeId}`);
-      // A global flag: the leaflet is the same in every store (docs/research.md §3).
-      if (wanted.onlyLeaflet) filters.push("isInCurrentLeaflet:true");
+      const filters = productFilters(storeId, wanted);
+      if (wanted.category !== undefined) filters.push(categoryFilter(wanted.category));
       const data = await algolia("Product search", `/1/indexes/${ALGOLIA_PRODUCT_INDEX}/query`, {
         query,
         hitsPerPage: limit,
@@ -475,6 +527,42 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
         totalPages: typeof nbPages === "number" ? nbPages : 0,
         totalResults: typeof nbHits === "number" ? nbHits : hits.length,
       };
+    },
+
+    async listCategories({ storeId, parent, filters: wanted }) {
+      const filters = productFilters(storeId, wanted);
+      if (parent !== undefined) filters.push(categoryFilter(parent));
+      // The children sit one level below the parent: lvl0 without one.
+      const facet = `${HIERARCHY}.lvl${parent === undefined ? 0 : categoryLevel(parent) + 1}`;
+      const data = await algolia("Category list", `/1/indexes/${ALGOLIA_PRODUCT_INDEX}/query`, {
+        query: "",
+        hitsPerPage: 0,
+        filters: filters.join(" AND "),
+        facets: [facet],
+        maxValuesPerFacet: MAX_VALUES_PER_FACET,
+      });
+      if (!isRecord(data)) throw new BilkaError("Category list answered without results");
+      const counts =
+        isRecord(data.facets) && isRecord(data.facets[facet]) ? data.facets[facet] : {};
+      // A product filed under two parents brings the other parent's children along.
+      const prefix = parent === undefined ? "" : parent + CATEGORY_SEPARATOR;
+      const categories = Object.entries(counts)
+        .filter(
+          (entry): entry is [string, number] =>
+            typeof entry[1] === "number" &&
+            entry[0] !== UNCATEGORIZED &&
+            entry[0].startsWith(prefix),
+        )
+        .map(([category, count]) => ({
+          category,
+          name: category.split(CATEGORY_SEPARATOR).at(-1) ?? category,
+          product_count: count,
+        }))
+        .sort(
+          (a, b) => b.product_count - a.product_count || a.category.localeCompare(b.category, "da"),
+        );
+      const { nbHits } = data;
+      return { categories, productCount: typeof nbHits === "number" ? nbHits : 0 };
     },
 
     async getProduct({ productId, storeId }) {
@@ -710,6 +798,46 @@ function toStores(addresses: DeliveryAddress[]): Store[] {
     const name = names.find((n) => /^bilka\b/i.test(n)) ?? names[0] ?? storeId;
     return { store_id: storeId, name, pickup_points: names.filter((n) => n !== name) };
   });
+}
+
+/**
+ * The Algolia filter terms every product query at `storeId` starts with: the
+ * store's assortment, searchable products, and the flags that are on.
+ */
+function productFilters(storeId: string, wanted: CategoryFilters): string[] {
+  const filters = [`isInAssortmentIn:${storeId}`, "nonsearchable:false"];
+  if (wanted.onlyInStock) filters.push(`inStockStore:${storeId}`);
+  if (wanted.onlyOffers) filters.push(`isInOffer:${storeId}`);
+  // A global flag: the leaflet is the same in every store (docs/research.md §3).
+  if (wanted.onlyLeaflet) filters.push("isInCurrentLeaflet:true");
+  return filters;
+}
+
+// The menu's category tree: `<HIERARCHY>.lvlN` holds a product's level-N paths.
+const HIERARCHY = "consumerFacingHierarchy";
+// Category paths join their levels' names with this, e.g. "Mejeri & køl > Pålæg".
+const CATEGORY_SEPARATOR = " > ";
+// The bucket of products outside the menu's tree. It isn't a menu category.
+const UNCATEGORIZED = "Not Categorized";
+// Algolia's ceiling. One level under one parent is far smaller, so nothing is cut off.
+const MAX_VALUES_PER_FACET = 1000;
+
+/**
+ * A category path's level in the tree: 0 at the top, one more per " > ".
+ * Throws on anything that isn't a category path, so no other text can reach
+ * a filter.
+ */
+function categoryLevel(path: string): number {
+  if (!CATEGORY_PATH_PATTERN.test(path)) {
+    throw new BilkaError(`${JSON.stringify(path)} isn't a category path`);
+  }
+  return path.split(CATEGORY_SEPARATOR).length - 1;
+}
+
+/** The filter term for products in the category `path`, at any depth below it. */
+function categoryFilter(path: string): string {
+  // The pattern rules out `"` and `\`, so the path can't end the quoted value.
+  return `${HIERARCHY}.lvl${categoryLevel(path)}:"${path}"`;
 }
 
 // The Algolia product record fields this client reads. Real records carry many more.

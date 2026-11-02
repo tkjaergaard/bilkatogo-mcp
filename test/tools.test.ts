@@ -3,10 +3,11 @@ import { connect } from "./support/harness.ts";
 
 // The fixed tool list. Adding a tool, and above all a write, must be a
 // deliberate change to this test. #1 pinned eight tools; select_store and the
-// four delivery tools were added at the user's request.
+// four delivery tools were added at the user's request, list_categories by #10.
 const EXPECTED_TOOLS: Record<string, "read-only" | "destructive" | "non-destructive write"> = {
   search_products: "read-only",
   get_product_details: "read-only",
+  list_categories: "read-only",
   list_stores: "read-only",
   select_store: "non-destructive write",
   get_cart: "read-only",

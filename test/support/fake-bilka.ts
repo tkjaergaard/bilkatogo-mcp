@@ -543,6 +543,8 @@ export class FakeBilka {
    * ignores the query text and returns every product that passes `filters`,
    * paged by `hitsPerPage` and `page` (0-based) and projected by
    * `attributesToRetrieve`. A page past the end is empty, with the totals.
+   * `facets` count the products that pass the filter per value, like Algolia,
+   * largest first and cut to `maxValuesPerFacet`.
    */
   private algoliaQuery(request: RecordedRequest): Response {
     const denied = checkAlgoliaKey(request);
@@ -557,6 +559,8 @@ export class FakeBilka {
       hitsPerPage?: number;
       page?: number;
       attributesToRetrieve?: string[];
+      facets?: string[];
+      maxValuesPerFacet?: number;
     };
     const filter = parseFilters(params.filters ?? "");
     const hitsPerPage = params.hitsPerPage ?? 20;
@@ -565,8 +569,13 @@ export class FakeBilka {
     const hits = matching
       .slice(page * hitsPerPage, (page + 1) * hitsPerPage)
       .map((product) => project(product, params.attributesToRetrieve ?? ["*"]));
+    const facets =
+      params.facets === undefined
+        ? undefined
+        : countFacets(matching, params.facets, params.maxValuesPerFacet ?? 100);
     return jsonResponse({
       hits,
+      ...(facets && { facets }),
       nbHits: matching.length,
       page,
       nbPages: Math.ceil(matching.length / hitsPerPage),
@@ -630,23 +639,63 @@ function replaceById(
 
 /**
  * Supports the Algolia filter syntax the server uses: `attr:value` terms
- * joined by `AND`. An array attribute matches when it contains the value.
- * Anything else throws, so a test fails loudly instead of matching wrongly.
+ * joined by `AND`, where `attr` may be a dotted path such as
+ * `consumerFacingHierarchy.lvl1` and `value` is a bare word or a quoted string
+ * such as `"Mejeri & køl > Pålæg"` (no escapes). An array attribute matches
+ * when it contains the value. Anything else throws, so a test fails loudly
+ * instead of matching wrongly.
  */
 function parseFilters(filters: string): (product: Record<string, any>) => boolean {
   if (filters.trim() === "") return () => true;
-  const terms = filters.split(" AND ").map((term) => {
-    const match = /^\s*([A-Za-z_][\w.]*):([\w-]+)\s*$/.exec(term);
-    if (!match)
-      throw new Error(`FakeBilka can't parse Algolia filter term: ${JSON.stringify(term)}`);
-    return { attribute: match[1]!, value: match[2]! };
-  });
+  const term = /([A-Za-z_][\w.]*):(?:([\w-]+)|"([^"\\]*)")(?: AND (?=.)|$)/y;
+  const terms: { attribute: string; value: string }[] = [];
+  while (term.lastIndex < filters.length) {
+    const start = term.lastIndex;
+    const match = term.exec(filters);
+    if (!match) {
+      throw new Error(
+        `FakeBilka can't parse Algolia filter: ${JSON.stringify(filters.slice(start))}`,
+      );
+    }
+    terms.push({ attribute: match[1]!, value: (match[2] ?? match[3])! });
+  }
   return (product) =>
     terms.every(({ attribute, value }) => {
-      const actual = product[attribute];
+      const actual = valueAt(product, attribute);
       if (Array.isArray(actual)) return actual.some((item) => String(item) === value);
       return String(actual) === value;
     });
+}
+
+/**
+ * Algolia's facet counts: per attribute (a dotted path such as
+ * `consumerFacingHierarchy.lvl1`), how many of `products` hold each value,
+ * largest first, at most `maxValues`. An attribute no product has is left out.
+ */
+function countFacets(
+  products: Record<string, any>[],
+  attributes: string[],
+  maxValues: number,
+): Record<string, Record<string, number>> {
+  const facets: Record<string, Record<string, number>> = {};
+  for (const attribute of attributes) {
+    const counts = new Map<string, number>();
+    for (const product of products) {
+      const value = valueAt(product, attribute);
+      const values = new Set((Array.isArray(value) ? value : [value]).filter((v) => v != null));
+      for (const v of values) counts.set(String(v), (counts.get(String(v)) ?? 0) + 1);
+    }
+    if (counts.size === 0) continue;
+    facets[attribute] = Object.fromEntries(
+      [...counts].sort(([, a], [, b]) => b - a).slice(0, maxValues),
+    );
+  }
+  return facets;
+}
+
+/** The value at a dotted attribute path, e.g. `consumerFacingHierarchy.lvl1`. */
+function valueAt(product: Record<string, any>, path: string): unknown {
+  return path.split(".").reduce<any>((value, key) => value?.[key], product);
 }
 
 function project(product: Record<string, any>, attributes: string[]): Record<string, any> {

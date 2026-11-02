@@ -117,6 +117,18 @@ Live counts:
 
 **A mix id can be long.** The "3 for 2" mix above has `multipromos: ["11220188"]`, `offerCount: 3` and an empty `multiPromoPrice`, while "Mix 2 for 35,00" style mixes have short ids (e.g. "1679") and a price in øre.
 
+### Algolia: the category tree (checked live on 2026-11-02, public key, no login)
+
+**The website's menu is `consumerFacingHierarchy`.** Each record has `consumerFacingHierarchy.lvl0` … `lvlN`, arrays of paths whose names are joined by " > ", e.g. `lvl1: ["Mejeri & køl > Pålæg"]`. A product's `deepestCategoryPath` is its deepest path in the same format, so it works as a filter value.
+
+- **Filter:** `consumerFacingHierarchy.lvlN:"<path>"`, where N is the number of " > " separators. The quoted form works live with spaces and `&` (`consumerFacingHierarchy.lvl0:"Mejeri & køl"`). Filtering on a level also matches every product deeper down.
+- **Counts:** a query with `hitsPerPage: 0`, `facets: ["consumerFacingHierarchy.lvl<N+1>"]` and the parent's filter answers with `facets[...]`, a map from child path to product count, plus `nbHits` for the parent. The counts follow every filter in the query (store, stock, offers, leaflet). Algolia caps `maxValuesPerFacet` at 1,000, and reports `exhaustiveFacetsCount: true` on these queries.
+- **Top level:** at store 1653, in stock, there are 22 categories plus a "Not Categorized" bucket (117 products), from "Personlig pleje" (6,056) down to "Biludstyr" (143). In the leaflet the same 22 values hold 2,959 products, e.g. "Personlig pleje" 746, "Mejeri & køl" 214, "Frugt & grønt" 13 (recorded in `test/fixtures/algolia-categories-leaflet.json`).
+- **Under one parent:** "Mejeri & køl" has 10 children at 1653 (e.g. "Mejeri" 675, "Pålæg" 398), and "Mejeri & køl > Pålæg" has 9 (e.g. "Kødpålæg" 162).
+- **Depth: five levels exist, lvl0 to lvl4.** The level-3 question from #10 is settled: lvl3 has 999 values at store 1653, groceries included (e.g. "Mejeri & køl > Mejeri > Yoghurt & syrnede mælkeprodukter > Skyr"). lvl4 has 176 values across all stores (170 at 1653, in stock, with 2,301 products), only outside groceries, e.g. "Tøj & sko > Børnetøj > Overdel > Toppe > Toppe Langærmet" (product 145872, whose `deepestCategoryPath` has those five names). lvl5 has no values. So `search_products.category` and `list_categories.parent` accept up to five names.
+- **Names:** none of the 1,233 facet values fetched contains `"`, `\` or `>` inside a name, or a space at either end of one. The server refuses those characters, so a category can't end the quoted filter value.
+- **A product filed under two parents** would bring the other parent's children into a child facet, so `list_categories` keeps only children whose path starts with the parent's. No such product has been seen.
+
 Notes:
 - Prices are in øre, so divide by 100.
 - Search results depend on the store. Without a store id you get products the chosen store doesn't stock.

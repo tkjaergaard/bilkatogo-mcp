@@ -1,7 +1,16 @@
 // Checks the fake's own scripting, which later tickets rely on.
 
 import { expect, test } from "vitest";
-import { FakeBilka, GIGYA_API_KEY, JWT, LOGIN_TOKEN, loadFixture, routeOf } from "./fake-bilka.ts";
+import {
+  ALGOLIA_APP_ID,
+  ALGOLIA_SEARCH_KEY,
+  FakeBilka,
+  GIGYA_API_KEY,
+  JWT,
+  LOGIN_TOKEN,
+  loadFixture,
+  routeOf,
+} from "./fake-bilka.ts";
 
 test("requests are routed by URL to Algolia, Gigya and shop routes", () => {
   expect(
@@ -101,4 +110,26 @@ test("requests to unknown hosts are recorded and answered 404", async () => {
 
   expect(response.status).toBe(404);
   expect(bilka.requests.map((r) => r.route)).toEqual(["unknown"]);
+});
+
+test("Algolia filters take quoted values with spaces, & and ' > ', and refuse what they can't parse", async () => {
+  const bilka = new FakeBilka();
+  const query = (filters: string) =>
+    bilka.fetch("https://f9vbjlr1bk-dsn.algolia.net/1/indexes/prod_BILKATOGO_PRODUCTS/query", {
+      method: "POST",
+      headers: {
+        "x-algolia-application-id": ALGOLIA_APP_ID,
+        "x-algolia-api-key": ALGOLIA_SEARCH_KEY,
+      },
+      body: JSON.stringify({ filters, attributesToRetrieve: ["objectID"] }),
+    });
+
+  const found = await (
+    await query('consumerFacingHierarchy.lvl1:"Mejeri & køl > Mejeri" AND inStockStore:1653')
+  ).json();
+  expect(found.hits.map((hit: { objectID: string }) => hit.objectID)).toEqual(["19753", "128298"]);
+  await expect(query('consumerFacingHierarchy.lvl0:"Frost\\" OR x:"y"')).rejects.toThrow(
+    /can't parse/,
+  );
+  await expect(query("inStockStore:1653 AND")).rejects.toThrow(/can't parse/);
 });
