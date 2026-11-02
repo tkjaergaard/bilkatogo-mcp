@@ -48,6 +48,19 @@ export const GIGYA_API_KEY = "3_tA6BbV434FQqN73HnUG1KA3qFv8KiG4OqLu9eWPh7sKRqRiz
 export const LOGIN_TOKEN = "test-login-token";
 /** The JWT Gigya hands out for it (`gigya-jwt.json`). */
 export const JWT = "test-jwt";
+/** The account's email in the scrubbed fixtures (`gigya-login.json` profile). */
+export const EMAIL = "test@example.com";
+/** The password the fake Gigya accepts for EMAIL. */
+export const PASSWORD = "test-password";
+
+/** Gigya's answer to a wrong email or password. Unverified shape (SAP's error-code list, nickknissen/bilkatogo). */
+export const GIGYA_INVALID_PASSWORD = {
+  errorCode: 403042,
+  errorDetails: "invalid loginID or password",
+  errorMessage: "Invalid LoginID",
+  statusCode: 403,
+  statusReason: "Forbidden",
+};
 
 /** Gigya's answer to an unknown or expired login token. Unverified shape (SAP's error-code list). */
 export const GIGYA_INVALID_TOKEN = {
@@ -109,7 +122,10 @@ export class FakeBilka {
   ]);
   /** The public delivery-address list (stores and pickup points). */
   deliveryAddresses: Record<string, any> = loadFixture("available-delivery-addresses.json");
-  /** The login token Gigya accepts. */
+  /** The email and password Gigya's password login accepts. */
+  email = EMAIL;
+  password = PASSWORD;
+  /** The login token Gigya accepts, and hands out on a password login. */
   loginToken = LOGIN_TOKEN;
   /** The JWT Gigya issues and the shop accepts. */
   jwt = JWT;
@@ -195,21 +211,7 @@ export class FakeBilka {
    * Unverified shape, from nickknissen/bilkatogo; confirm against a captured response.
    */
   rejectPasswordLogin(times = Number.POSITIVE_INFINITY): this {
-    return this.script(
-      "gigya.login",
-      () =>
-        jsonResponse(
-          {
-            errorCode: 403042,
-            errorDetails: "invalid loginID or password",
-            errorMessage: "Invalid LoginID",
-            statusCode: 403,
-            statusReason: "Forbidden",
-          },
-          403,
-        ),
-      times,
-    );
+    return this.script("gigya.login", () => jsonResponse(GIGYA_INVALID_PASSWORD, 403), times);
   }
 
   private async respond(request: RecordedRequest): Promise<Response> {
@@ -233,6 +235,7 @@ export class FakeBilka {
       request.method === "GET"
         ? jsonResponse(this.deliveryAddresses)
         : jsonResponse({ message: "Method not allowed" }, 405),
+    "gigya.login": (request) => this.gigyaLogin(request),
     "gigya.getJWT": (request) => this.gigyaGetJwt(request),
     "shop.Cart": (request) =>
       this.requireJwt(request) ??
@@ -247,6 +250,24 @@ export class FakeBilka {
     "shop.OrderHistory": (request) => this.requireJwt(request) ?? this.orderHistory(request),
     "shop.OrderDetails": (request) => this.requireJwt(request) ?? this.orderDetail(request),
   };
+
+  /**
+   * Gigya's password login. Answers like the capture (`gigya-login.json`),
+   * with the current login token as `sessionInfo.cookieValue`, for the right
+   * email and password; otherwise with Gigya's error.
+   */
+  private gigyaLogin(request: RecordedRequest): Response {
+    const form = request.form();
+    if (request.method !== "POST" || form.get("apiKey") !== GIGYA_API_KEY) {
+      return jsonResponse({ errorCode: 400093, errorMessage: "Invalid ApiKey parameter" }, 400);
+    }
+    if (form.get("loginID") !== this.email || form.get("password") !== this.password) {
+      return jsonResponse(GIGYA_INVALID_PASSWORD, 403);
+    }
+    const answer = loadFixture<Record<string, any>>("gigya-login.json");
+    answer.sessionInfo.cookieValue = this.loginToken;
+    return jsonResponse(answer);
+  }
 
   /**
    * Sets one product's line in `this.cart` to `count` (0 removes it) and

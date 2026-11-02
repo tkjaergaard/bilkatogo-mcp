@@ -21,10 +21,14 @@ export type CredentialSources = {
   loginFile?: string | undefined;
 };
 
+/** This server's config directory: `$XDG_CONFIG_HOME/bilka-mcp`, by default `~/.config/bilka-mcp`. */
+export function configDir(env: Record<string, string | undefined>): string {
+  return join(env.XDG_CONFIG_HOME || join(homedir(), ".config"), "bilka-mcp");
+}
+
 /** `$XDG_CONFIG_HOME/bilka-mcp/login.json`, by default `~/.config/bilka-mcp/login.json`. */
 export function defaultLoginFile(env: Record<string, string | undefined>): string {
-  const configHome = env.XDG_CONFIG_HOME || join(homedir(), ".config");
-  return join(configHome, "bilka-mcp", "login.json");
+  return join(configDir(env), "login.json");
 }
 
 /**
