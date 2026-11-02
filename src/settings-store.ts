@@ -22,7 +22,7 @@ export type SettingsStore = {
   save(settings: Settings): Promise<void>;
 };
 
-/** `$XDG_CONFIG_HOME/bilka-mcp/settings.json`, by default `~/.config/bilka-mcp/settings.json`. */
+/** `$XDG_CONFIG_HOME/bilkatogo-mcp/settings.json`, by default `~/.config/bilkatogo-mcp/settings.json`. */
 export function defaultSettingsFile(env: Env): string {
   return join(configDir(env), "settings.json");
 }

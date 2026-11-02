@@ -206,7 +206,7 @@ async function tempDir(): Promise<string> {
 
 test("the session file holds the working token, readable only by its owner, written atomically", async () => {
   const dir = await tempDir();
-  const file = join(dir, "bilka-mcp", "session.json");
+  const file = join(dir, "bilkatogo-mcp", "session.json");
   const { callTool } = await connect({ ...withPassword, sessionStore: fileSessionStore(file) });
 
   expect((await callTool("get_cart")).isError).toBe(false);
@@ -214,7 +214,7 @@ test("the session file holds the working token, readable only by its owner, writ
   expect(JSON.parse(await readFile(file, "utf8"))).toEqual({ loginToken: LOGIN_TOKEN });
   expect((await stat(file)).mode & 0o777).toBe(0o600);
   // Nothing left over from the temp-file-and-rename write.
-  expect(await readdir(join(dir, "bilka-mcp"))).toEqual(["session.json"]);
+  expect(await readdir(join(dir, "bilkatogo-mcp"))).toEqual(["session.json"]);
 
   // A restart reads it back: no password login needed.
   const restarted = await connect({

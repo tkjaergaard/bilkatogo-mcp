@@ -41,9 +41,9 @@ Node.js 24 or later. `npx` comes with it and runs the server from npm, so there'
 
 Search only shows what one Bilka store carries, so the server needs to know your store. Ask your assistant, for example "use Bilka Odense" or "which Bilka stores are there?". It calls `list_stores` to see the stores and `select_store` to choose one, by its id (such as `1654`) or by part of a store or pickup-point name. A pickup-point name chooses the store that serves it. When a name matches several stores, nothing is chosen and the assistant asks you which one you mean. Neither tool needs a login, and a choice applies to the next search straight away.
 
-The choice is saved to `~/.config/bilka-mcp/settings.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"storeId": "1654"}`, written atomically with mode 600 like the session file, so it survives a restart. If the file can't be written, the server writes a warning to stderr and the choice lasts until the server stops. It's a setting of this server only: nothing changes on your Bilka account.
+The choice is saved to `~/.config/bilkatogo-mcp/settings.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"storeId": "1654"}`, written atomically with mode 600 like the session file, so it survives a restart. If the file can't be written, the server writes a warning to stderr and the choice lasts until the server stops. It's a setting of this server only: nothing changes on your Bilka account.
 
-Optionally, set a default store without asking the assistant: `BILKATOGO_STORE_ID`, or `"storeId"` in `~/.config/bilka-mcp/login.json` (see [Credential options](#credential-options)). The environment wins over the login file, and a store chosen with `select_store` wins over both, because it's your most recent choice. The defaults are read only when a tool needs the store, and the file at most once per run, so restart the server after changing them. Without any store, `search_products` answers with an error that tells the assistant to choose one.
+Optionally, set a default store without asking the assistant: `BILKATOGO_STORE_ID`, or `"storeId"` in `~/.config/bilkatogo-mcp/login.json` (see [Credential options](#credential-options)). The environment wins over the login file, and a store chosen with `select_store` wins over both, because it's your most recent choice. The defaults are read only when a tool needs the store, and the file at most once per run, so restart the server after changing them. Without any store, `search_products` answers with an error that tells the assistant to choose one.
 
 The original spec (issue #1) pinned eight tools. `select_store` was added on request, so you can pick a store by name in conversation instead of looking up and configuring its id. When you switch the cart to a pickup place in another store with `set_delivery_place`, the selected store follows it, so search shows the cart's prices.
 
@@ -79,14 +79,14 @@ Instead of the `login` command, you can give the server one or both of these:
 - **Email and password**: `BILKATOGO_EMAIL` and `BILKATOGO_PASSWORD`. The server logs in through Bilka's login service (SAP Gigya) by itself.
 - **A pasted login token**: `BILKATOGO_LOGIN_TOKEN`. This is the fallback in case Bilka ever blocks automated password login. To get one, log in on [bilkatogo.dk](https://www.bilkatogo.dk), open the browser's developer console and run `localStorage.getItem("auth")`.
 
-Each can come from the environment or from `~/.config/bilka-mcp/login.json` (under `$XDG_CONFIG_HOME` when that's set). The environment wins when both are set. Keep the file readable only by you; the server warns when it isn't:
+Each can come from the environment or from `~/.config/bilkatogo-mcp/login.json` (under `$XDG_CONFIG_HOME` when that's set). The environment wins when both are set. Keep the file readable only by you; the server warns when it isn't:
 
 ```sh
-mkdir -p ~/.config/bilka-mcp
-(umask 077 && cat > ~/.config/bilka-mcp/login.json) <<'JSON'
+mkdir -p ~/.config/bilkatogo-mcp
+(umask 077 && cat > ~/.config/bilkatogo-mcp/login.json) <<'JSON'
 { "email": "you@example.com", "password": "PASSWORD", "loginToken": "OPTIONAL-PASTED-TOKEN", "storeId": "1654" }
 JSON
-chmod 600 ~/.config/bilka-mcp/login.json  # in case the file already existed
+chmod 600 ~/.config/bilkatogo-mcp/login.json  # in case the file already existed
 ```
 
 Leave out the keys you don't use. `storeId` is optional and isn't a secret; it's there so the whole setup can live in one file.
@@ -103,7 +103,7 @@ The login token is swapped for a 24-hour session (a JWT), kept in memory and ren
 
 ### The session file
 
-A login token that works is saved to `~/.config/bilka-mcp/session.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"loginToken": "…"}`, so a restart doesn't need a fresh password login. The file is written atomically (a temp file renamed into place) with mode 600, readable only by you. If it can't be written, the server writes a warning to stderr and carries on; it will log in again after the next restart. When Gigya rejects the remembered token, the server deletes the file too, so the next restart doesn't try that token first. Run `logout`, or delete the file yourself, to make the server forget the login.
+A login token that works is saved to `~/.config/bilkatogo-mcp/session.json` (under `$XDG_CONFIG_HOME` when that's set) as `{"loginToken": "…"}`, so a restart doesn't need a fresh password login. The file is written atomically (a temp file renamed into place) with mode 600, readable only by you. If it can't be written, the server writes a warning to stderr and carries on; it will log in again after the next restart. When Gigya rejects the remembered token, the server deletes the file too, so the next restart doesn't try that token first. Run `logout`, or delete the file yourself, to make the server forget the login.
 
 ## Register it in Claude Code
 
@@ -115,7 +115,7 @@ Then ask Claude something like "use Bilka Odense and find havremælk". Add `-s u
 
 With `@latest`, `npx` checks npm for a new version each time your MCP client starts the server, so an update arrives with the next restart. To stay on one version, name it instead, e.g. `bilkatogo-mcp@0.1.0`.
 
-To set a default store in the MCP config instead, add `-e BILKATOGO_STORE_ID=1654`. The store id isn't a secret, so it's fine there. Your password and login token are: keep them in `~/.config/bilka-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
+To set a default store in the MCP config instead, add `-e BILKATOGO_STORE_ID=1654`. The store id isn't a secret, so it's fine there. Your password and login token are: keep them in `~/.config/bilkatogo-mcp/login.json` with mode 600 (or in your shell's environment), never in an MCP config you might commit.
 
 Any other MCP client works the same way: it runs `npx -y bilkatogo-mcp@latest` over stdio. For example, in Claude Desktop's `claude_desktop_config.json`:
 

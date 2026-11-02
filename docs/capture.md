@@ -32,7 +32,7 @@ How it keeps your account safe:
 - **Your cart ends as it started.** Steps 7 to 9 only run when the product isn't in the cart already (the product id doesn't appear anywhere in the cart answer). Step 8 is sent even if step 7 fails, and step 9 checks the result. If the product is in the cart, or the cart read failed, or Algolia says the product isn't sold at your store, the cart isn't touched. The output always says which happened. If it ever prints `WARNING`, remove the product by hand on bilkatogo.dk.
 - **LoginJWT gets no cookies.** nickknissen found that `auth/LoginJWT` replaces the account's cart with the cart stored under any `cart` cookie it's sent. The script sends it none, and throws away any cookie the step 4 probe receives.
 - **No secrets in the output or the files.** The password, login token, JWT and cookie values are never printed. In the saved files, every field whose name contains `token`, `cookieValue`, `jwt`, `password`, `secret` or `signature` becomes `"<secret>"`, and any other place a known secret appears is replaced too. The email address isn't printed, but the saved files still hold it and the rest of your personal data: that's what step 3 below is for.
-- **Private files outside git.** The default folder is `${XDG_CACHE_HOME:-~/.cache}/bilka-mcp/captures/<time>/`, created with mode 700 and files with mode 600. The script refuses a folder inside the repo or one that already has files in it. `.gitignore` also ignores `captures/`.
+- **Private files outside git.** The default folder is `${XDG_CACHE_HOME:-~/.cache}/bilkatogo-mcp/captures/<time>/`, created with mode 700 and files with mode 600. The script refuses a folder inside the repo or one that already has files in it. `.gitignore` also ignores `captures/`.
 - **Light traffic.** One run is about as many requests as opening the site and looking at your cart and last order.
 
 Exit codes: 0 all done; 1 some step failed (see `summary.json`); 2 no credentials, or login failed; 3 the cart may have been left changed; 64 bad arguments.
@@ -57,7 +57,7 @@ node scripts/capture.ts <product-id>
 unset BILKATOGO_PASSWORD
 ```
 
-Credentials can also come from `~/.config/bilka-mcp/login.json` (mode 600) with the keys `email`, `password` and `loginToken`. Environment variables win. `--out <dir>` picks another output folder.
+Credentials can also come from `~/.config/bilkatogo-mcp/login.json` (mode 600) with the keys `email`, `password` and `loginToken`. Environment variables win. `--out <dir>` picks another output folder.
 
 Read the summary it prints. The line `Password login:` is the answer to "does password login work headless": `worked headless`, or `blocked: CAPTCHA or bot protection`, `invalid credentials`, `blocked: account locked` or `failed`, with Gigya's error code and message. The Gigya error codes it matches on (401020, 401021, 403120) come from SAP's documentation and haven't been seen from Bilka yet, so write down the code and message you actually got.
 
@@ -78,7 +78,7 @@ Then check your cart on bilkatogo.dk looks as it did before.
 ### 3. Inspect the keys
 
 ```sh
-node scripts/key-paths.ts ~/.cache/bilka-mcp/captures/<time>
+node scripts/key-paths.ts ~/.cache/bilkatogo-mcp/captures/<time>
 ```
 
 It prints every key path in each file, such as `order.deliveryAddress.order_pickup_code  string  <- personal?`. `personal?` means the key name looks personal; `email-like` means a value looked like an email address. Both are only hints, so read every path. Note each personal-data path for the cart, order history and order details answers: names, address blocks, phone, email, door or access codes, delivery notes, pickup codes, and customer ids such as `uid` and `tid`.
@@ -136,7 +136,7 @@ In `docs/research.md` §3:
 
 ### 7. Clean up
 
-Delete the raw captures once the fixtures are committed: `rm -r ~/.cache/bilka-mcp/captures/<time>`. Then check that no token made it into git history. This should print nothing:
+Delete the raw captures once the fixtures are committed: `rm -r ~/.cache/bilkatogo-mcp/captures/<time>`. Then check that no token made it into git history. This should print nothing:
 
 ```sh
 git log -p --all | grep -nE 'eyJ[A-Za-z0-9_-]{10,}\.|st2\.[A-Za-z0-9_-]{10,}'

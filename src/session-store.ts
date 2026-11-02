@@ -17,7 +17,7 @@ export type SessionStore = {
   clear(): Promise<void>;
 };
 
-/** `$XDG_CONFIG_HOME/bilka-mcp/session.json`, by default `~/.config/bilka-mcp/session.json`. */
+/** `$XDG_CONFIG_HOME/bilkatogo-mcp/session.json`, by default `~/.config/bilkatogo-mcp/session.json`. */
 export function defaultSessionFile(env: Env): string {
   return join(configDir(env), "session.json");
 }

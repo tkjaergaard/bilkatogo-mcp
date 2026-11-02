@@ -35,7 +35,7 @@ async function run(args: string[], answers: string[] = [], options: { configHome
     bilka,
     io,
     asked,
-    sessionFile: join(configHome, "bilka-mcp", "session.json"),
+    sessionFile: join(configHome, "bilkatogo-mcp", "session.json"),
     /** Runs the command; call after scripting `bilka`. */
     exec: async () => {
       const code = await runCli(args, io);
@@ -123,7 +123,7 @@ test("login --token with a token Gigya rejects saves nothing", async () => {
 
 test("status reports a saved login that works", async () => {
   const configHome = await mkdtemp(join(tmpdir(), "bilka-mcp-cli-"));
-  await fileSessionStore(join(configHome, "bilka-mcp", "session.json")).save(LOGIN_TOKEN);
+  await fileSessionStore(join(configHome, "bilkatogo-mcp", "session.json")).save(LOGIN_TOKEN);
   const { bilka, exec } = await run(["status"], [], { configHome });
 
   const { code, out } = await exec();
@@ -135,7 +135,7 @@ test("status reports a saved login that works", async () => {
 
 test("status reports a saved login that Gigya now rejects", async () => {
   const configHome = await mkdtemp(join(tmpdir(), "bilka-mcp-cli-"));
-  await fileSessionStore(join(configHome, "bilka-mcp", "session.json")).save(LOGIN_TOKEN);
+  await fileSessionStore(join(configHome, "bilkatogo-mcp", "session.json")).save(LOGIN_TOKEN);
   const { bilka, exec } = await run(["status"], [], { configHome });
   bilka.rejectLoginToken();
 
@@ -158,10 +158,10 @@ test("status without a saved login sends nothing to Bilka and says how to log in
 
 test("logout removes the saved login, and mentions a login.json the server would still use", async () => {
   const configHome = await mkdtemp(join(tmpdir(), "bilka-mcp-cli-"));
-  const sessionFile = join(configHome, "bilka-mcp", "session.json");
+  const sessionFile = join(configHome, "bilkatogo-mcp", "session.json");
   await fileSessionStore(sessionFile).save(LOGIN_TOKEN);
   await writeFile(
-    join(configHome, "bilka-mcp", "login.json"),
+    join(configHome, "bilkatogo-mcp", "login.json"),
     JSON.stringify({ email: EMAIL, password: PASSWORD }),
     { mode: 0o600 },
   );

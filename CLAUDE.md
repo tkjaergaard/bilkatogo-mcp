@@ -1,4 +1,4 @@
-# bilka-mcp
+# bilkatogo-mcp
 
 An unofficial, private MCP server for BilkaToGo (bilkatogo.dk), a Danish grocery shop. It's a proof of concept modelled on [kraenhansen/nemlig-mcp](https://github.com/kraenhansen/nemlig-mcp).
 
@@ -29,7 +29,7 @@ These come from nemlig-mcp. Each one protects the user's real Bilka account.
 
 ## Credentials
 
-Read these from environment variables (`BILKATOGO_EMAIL`, `BILKATOGO_PASSWORD`, or a pasted `BILKATOGO_LOGIN_TOKEN`) or from `~/.config/bilka-mcp/login.json` (mode 600). Keep them out of the repo and out of MCP config files that get committed. Use the server with your own Salling Group Profile only: the profile is personal (profile terms §1.6).
+Read these from environment variables (`BILKATOGO_EMAIL`, `BILKATOGO_PASSWORD`, or a pasted `BILKATOGO_LOGIN_TOKEN`) or from `~/.config/bilkatogo-mcp/login.json` (mode 600). Keep them out of the repo and out of MCP config files that get committed. Use the server with your own Salling Group Profile only: the profile is personal (profile terms §1.6).
 
 ## Agent skills
 
