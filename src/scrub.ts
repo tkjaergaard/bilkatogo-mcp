@@ -7,6 +7,8 @@
 // the model can still tell that, say, an order had a delivery address. Empty
 // values ("" and null) stay as they are: they hold nothing personal.
 
+import { isPublicFacility } from "./facilities.ts";
+
 export const REDACTED = "[personal data removed]";
 
 // Keys whose whole value is personal: address blocks, delivery notes, the
@@ -99,7 +101,6 @@ const PLACE_KEYS = new Set([
   "currentDeliveryDate",
 ]);
 const PUBLIC_PLACE_KEYS = new Set(["id", "name", "address", "zip", "city"]);
-export const PUBLIC_FACILITIES = new Set([3, 5]);
 
 // `name` is a person's name on an order or address (next to `address` or
 // `zipcity`, in any case) and a product's name everywhere else.
@@ -138,7 +139,7 @@ function isPlace(value: unknown): value is Record<string, unknown> {
 }
 
 function scrubPlace(place: Record<string, unknown>): Record<string, unknown> {
-  const isPublic = PUBLIC_FACILITIES.has(place.facility as number);
+  const isPublic = isPublicFacility(place.facility);
   const out: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(place)) {
     const keep = PLACE_KEYS.has(key) || (isPublic && PUBLIC_PLACE_KEYS.has(key));

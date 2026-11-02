@@ -6,13 +6,7 @@
 
 import { kroner } from "./money.ts";
 import { plain, text } from "./values.ts";
-import { PUBLIC_FACILITIES } from "./scrub.ts";
-
-/**
- * Where the order goes. Bilka's `facility`: 8 home delivery, 3 pickup in a
- * Bilka store, 5 a standalone pickup point.
- */
-export type PlaceKind = "home_delivery" | "pickup_in_store" | "pickup_point" | "other";
+import { isHomeDelivery, isPublicFacility, type PlaceKind, placeKind } from "./facilities.ts";
 
 export type DeliveryPlace = {
   /**
@@ -77,14 +71,7 @@ type ShopPlace = {
   minimum_buy?: number;
 };
 
-export const HOME_DELIVERY_FACILITY = 8;
 const HOME_PLACE_ID = "home";
-
-const KINDS: Record<number, PlaceKind> = {
-  [HOME_DELIVERY_FACILITY]: "home_delivery",
-  3: "pickup_in_store",
-  5: "pickup_point",
-};
 
 /**
  * The places in a place list, in Bilka's order, home addresses numbered
@@ -94,7 +81,7 @@ const KINDS: Record<number, PlaceKind> = {
 export function toPlaces(list: unknown[]): DeliveryPlace[] {
   let homes = 0;
   return list.flatMap((raw) => {
-    const isHome = (raw as ShopPlace | null)?.facility === HOME_DELIVERY_FACILITY;
+    const isHome = isHomeDelivery((raw as ShopPlace | null)?.facility);
     const label = isHome ? homeLabel(++homes) : undefined;
     return toPlace(raw, label) ?? [];
   });
@@ -112,17 +99,14 @@ export function homeLabel(n: number): string {
 export function toPlace(raw: unknown, label?: string): DeliveryPlace | null {
   if (typeof raw !== "object" || raw === null) return null;
   const place = raw as ShopPlace;
-  const isPublic = PUBLIC_FACILITIES.has(place.facility ?? -1);
-  const id =
-    place.facility === HOME_DELIVERY_FACILITY
-      ? (label ?? HOME_PLACE_ID)
-      : isPublic
-        ? String(place.id ?? "").trim()
-        : "";
+  const kind = placeKind(place.facility);
+  if (kind === undefined) return null;
+  const isPublic = isPublicFacility(place.facility);
+  const id = isPublic ? String(place.id ?? "").trim() : (label ?? HOME_PLACE_ID);
   if (id === "") return null;
   return {
     place_id: id,
-    kind: KINDS[place.facility ?? -1] ?? "other",
+    kind,
     name: isPublic ? place.name?.trim() || null : null,
     store_id: String(place.sid ?? ""),
     minimum_order: typeof place.minimum_buy === "number" ? kroner(place.minimum_buy) : null,

@@ -9,12 +9,12 @@ import {
   chosenSlot,
   type DeliveryPlace,
   type DeliverySlots,
-  HOME_DELIVERY_FACILITY,
   homeLabel,
   toDeliverySlots,
   toPlace,
   toPlaces,
 } from "./delivery.ts";
+import { isHomeDelivery } from "./facilities.ts";
 import { kroner } from "./money.ts";
 import {
   type OrderDetails,
@@ -710,12 +710,10 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
         { scrub: false },
       );
       const places = (Array.isArray(list.addresses) ? list.addresses : []).filter(isRecord);
-      const homes = places.filter((place) => place.facility === HOME_DELIVERY_FACILITY);
+      const homes = places.filter((place) => isHomeDelivery(place.facility));
       const target =
         homes.find((_, index) => homeLabel(index + 1) === placeId) ??
-        places.find(
-          (place) => place.facility !== HOME_DELIVERY_FACILITY && String(place.id) === placeId,
-        );
+        places.find((place) => !isHomeDelivery(place.facility) && String(place.id) === placeId);
       if (target === undefined) return null;
       // toPlace keeps only the kind, store and minimum, plus the id and name
       // of a public place, so it's safe on the unscrubbed entry.
@@ -726,11 +724,10 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       if (String(active.id) === String(target.id)) {
         return { place, changed: false, previousStoreId };
       }
-      const params: Record<string, string> =
-        target.facility === HOME_DELIVERY_FACILITY
-          ? { dawa_uid: text(target.dawa_uid) ?? "", street: text(target.street) ?? "" }
-          : { id: placeId, zipcode: String(target.zip ?? "") };
-      if (target.facility === HOME_DELIVERY_FACILITY && (!params.dawa_uid || !params.street)) {
+      const params: Record<string, string> = isHomeDelivery(target.facility)
+        ? { dawa_uid: text(target.dawa_uid) ?? "", street: text(target.street) ?? "" }
+        : { id: placeId, zipcode: String(target.zip ?? "") };
+      if (isHomeDelivery(target.facility) && (!params.dawa_uid || !params.street)) {
         throw new BilkaError(`${what} failed: Bilka's place list holds no home address to send`);
       }
       const answer = await shopJson(what, "v6/SetDeliveryAddress", { ...params, basketguid: "" });
