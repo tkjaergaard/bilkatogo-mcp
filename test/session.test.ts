@@ -199,7 +199,7 @@ test("after a restart, the remembered token logs in without the password", async
 
 /** A fresh temp directory, removed after the test. */
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "bilka-mcp-session-"));
+  const dir = await mkdtemp(join(tmpdir(), "bilkatogo-mcp-session-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
   return dir;
 }

@@ -14,7 +14,7 @@ import { connect } from "./support/harness.ts";
 
 /** Runs a command with scripted answers to its prompts, in a fresh config directory. */
 async function run(args: string[], answers: string[] = [], options: { configHome?: string } = {}) {
-  const configHome = options.configHome ?? (await mkdtemp(join(tmpdir(), "bilka-mcp-cli-")));
+  const configHome = options.configHome ?? (await mkdtemp(join(tmpdir(), "bilkatogo-mcp-cli-")));
   onTestFinished(() => rm(configHome, { recursive: true, force: true }));
   const bilka = new FakeBilka();
   const out: string[] = [];
@@ -122,7 +122,7 @@ test("login --token with a token Gigya rejects saves nothing", async () => {
 });
 
 test("status reports a saved login that works", async () => {
-  const configHome = await mkdtemp(join(tmpdir(), "bilka-mcp-cli-"));
+  const configHome = await mkdtemp(join(tmpdir(), "bilkatogo-mcp-cli-"));
   await fileSessionStore(join(configHome, "bilkatogo-mcp", "session.json")).save(LOGIN_TOKEN);
   const { bilka, exec } = await run(["status"], [], { configHome });
 
@@ -134,7 +134,7 @@ test("status reports a saved login that works", async () => {
 });
 
 test("status reports a saved login that Gigya now rejects", async () => {
-  const configHome = await mkdtemp(join(tmpdir(), "bilka-mcp-cli-"));
+  const configHome = await mkdtemp(join(tmpdir(), "bilkatogo-mcp-cli-"));
   await fileSessionStore(join(configHome, "bilkatogo-mcp", "session.json")).save(LOGIN_TOKEN);
   const { bilka, exec } = await run(["status"], [], { configHome });
   bilka.rejectLoginToken();
@@ -157,7 +157,7 @@ test("status without a saved login sends nothing to Bilka and says how to log in
 });
 
 test("logout removes the saved login, and mentions a login.json the server would still use", async () => {
-  const configHome = await mkdtemp(join(tmpdir(), "bilka-mcp-cli-"));
+  const configHome = await mkdtemp(join(tmpdir(), "bilkatogo-mcp-cli-"));
   const sessionFile = join(configHome, "bilkatogo-mcp", "session.json");
   await fileSessionStore(sessionFile).save(LOGIN_TOKEN);
   await writeFile(

@@ -56,7 +56,7 @@ export async function connect(options: ConnectOptions = {}): Promise<Connection>
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const handle = serveStdio(() => createServer(serverConfig), { transport: serverTransport });
   const client = new Client(
-    { name: "bilka-mcp-tests", version: "0.0.0" },
+    { name: "bilkatogo-mcp-tests", version: "0.0.0" },
     { versionNegotiation: { mode: protocol } },
   );
   await client.connect(clientTransport);

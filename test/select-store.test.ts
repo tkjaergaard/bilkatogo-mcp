@@ -112,7 +112,7 @@ test("select_store reads the public store list without logging in", async () => 
 });
 
 async function tempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "bilka-mcp-settings-"));
+  const dir = await mkdtemp(join(tmpdir(), "bilkatogo-mcp-settings-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
   return dir;
 }

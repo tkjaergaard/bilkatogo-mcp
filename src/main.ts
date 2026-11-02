@@ -46,12 +46,12 @@ function serve(): void {
     settingsStore: fileSettingsStore(defaultSettingsFile(process.env)),
     // Remembers the login token that worked, so a restart skips the password login.
     sessionStore: fileSessionStore(defaultSessionFile(process.env)),
-    warn: (line) => console.error(`bilka-mcp: ${line}`),
+    warn: (line) => console.error(`bilkatogo-mcp: ${line}`),
   };
 
   serveStdio(() => createServer(config), {
-    onerror: (error) => console.error(`bilka-mcp: ${error.message}`),
+    onerror: (error) => console.error(`bilkatogo-mcp: ${error.message}`),
   });
 
-  console.error("bilka-mcp: serving MCP on stdio");
+  console.error("bilkatogo-mcp: serving MCP on stdio");
 }

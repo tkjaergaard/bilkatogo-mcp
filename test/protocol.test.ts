@@ -47,7 +47,7 @@ test(
       },
     ];
     // A clean environment: no store id or credentials, and an empty home directory.
-    const home = mkdtempSync(join(tmpdir(), "bilka-mcp-stdout-"));
+    const home = mkdtempSync(join(tmpdir(), "bilkatogo-mcp-stdout-"));
     const child = spawn(process.execPath, ["src/main.ts"], {
       cwd: new URL("..", import.meta.url),
       env: { PATH: process.env.PATH, HOME: home, XDG_CONFIG_HOME: join(home, ".config") },
@@ -81,7 +81,7 @@ test(
     );
     expect(byId.get(2)?.result.isError).toBe(true);
     expect(byId.get(2)?.result.content[0].text).toContain("BILKATOGO_STORE_ID");
-    expect(stderr).toContain("bilka-mcp");
+    expect(stderr).toContain("bilkatogo-mcp:");
     expect(exitCode).toBe(0);
   },
 );
