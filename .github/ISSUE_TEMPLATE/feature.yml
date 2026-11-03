@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest a new tool or a change to an existing one.
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Placing orders and payment stay on bilkatogo.dk, done by a person, so tools that order or pay won't be added. Everything else (search, the cart, delivery, order history) is fair game.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should the server do?
+      description: The tool or change you have in mind, and what you'd ask the assistant that it can't answer today.
+    validations:
+      required: true
+  - type: textarea
+    id: endpoint
+    attributes:
+      label: Bilka endpoint (if known)
+      description: The request bilkatogo.dk makes for this, e.g. from the browser's network tab. Leave out tokens, cookies, names, addresses and other personal data.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: What you've checked, what you haven't, alternatives you considered.
