@@ -3,13 +3,15 @@ import { connect } from "./support/harness.ts";
 
 // The fixed tool list. Adding a tool, and above all a write, must be a
 // deliberate change to this test. #1 pinned eight tools; select_store and the
-// four delivery tools were added at the user's request, list_categories by #10.
+// four delivery tools were added at the user's request, list_categories by #10,
+// get_alternatives by #23 and get_most_bought by #24.
 // Every tool that changes the cart (lines, place, slot) is destructive;
 // select_store, which only changes this server's own setting, is the one
 // non-destructive write; everything else is read-only (CLAUDE.md).
 const EXPECTED_TOOLS: Record<string, "read-only" | "destructive" | "local-setting write"> = {
   search_products: "read-only",
   get_product_details: "read-only",
+  get_alternatives: "read-only",
   list_categories: "read-only",
   list_stores: "read-only",
   select_store: "local-setting write",
@@ -22,6 +24,7 @@ const EXPECTED_TOOLS: Record<string, "read-only" | "destructive" | "local-settin
   set_delivery_slot: "destructive",
   get_order_history: "read-only",
   get_order_details: "read-only",
+  get_most_bought: "read-only",
 };
 
 test("the server offers exactly the pinned tools", async () => {

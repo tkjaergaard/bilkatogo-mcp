@@ -18,6 +18,8 @@ export type RouteName =
   | "gigya.login"
   | "gigya.getJWT"
   | `shop.${string}`
+  | "salling.mostBought"
+  | "salling.alternatives"
   | "unknown";
 
 /** A route name, or a prefix pattern such as `shop.*`. */
@@ -54,6 +56,8 @@ const ALGOLIA_SORT_INDEXES: Record<string, string> = {
   prod_r_BILKATOGO_PRODUCT_pricesort: "price",
   prod_r_BILKATOGO_PRODUCT_uompricesort: "unitOfMeasurePrice",
 };
+/** The shared key bilkatogo.dk sends to Salling Group's API (docs/research.md §3). */
+export const SALLING_API_KEY = "45c0740c-f037-4915-89c0-171f6edf9fd3";
 export const GIGYA_API_KEY = "3_tA6BbV434FQqN73HnUG1KA3qFv8KiG4OqLu9eWPh7sKRqRizH5Vfv5Larmgrb4I2";
 
 /** The login token in the scrubbed fixtures (`gigya-login.json`). */
@@ -109,6 +113,12 @@ export function routeOf(url: URL): RouteName {
     if (url.pathname === "/accounts.login") return "gigya.login";
     if (url.pathname === "/accounts.getJWT") return "gigya.getJWT";
   }
+  if (host === "api.sallinggroup.com") {
+    if (url.pathname === "/v2/recommendations/most-bought/bilkatogo") return "salling.mostBought";
+    if (url.pathname.startsWith("/v2/recommendations/alternative-products/bilkatogo/")) {
+      return "salling.alternatives";
+    }
+  }
   if (host === "api.bilkatogo.dk") {
     // `/api/shop/v6/Cart` → `shop.Cart`. The version stays visible in `url`.
     const match = /^\/api\/shop\/v\d+\/([^/]+)$/.exec(url.pathname);
@@ -163,6 +173,27 @@ export class FakeBilka {
   orderDetails: Record<string, Record<string, any>> = {
     "900000000001": loadFixture("shop-order-details.json").order,
   };
+
+  /**
+   * Salling's alternative products, by the sku in the request path. The
+   * bananas (18381) have three: two products in the index and one it lacks.
+   */
+  alternativesBySku: Record<string, Record<string, any>[]> = {
+    "89300500105": loadFixture("salling-alternative-products.json").output[0].suggestions,
+  };
+
+  /**
+   * Salling's most-bought lists, by `customerId`: the shop's `tid` for the
+   * account (`test-tid` in the cart fixture). A synthetic list of index
+   * products, plus one the index lacks (999999).
+   */
+  mostBoughtByCustomer: Record<string, Record<string, any>[]> = {
+    "test-tid": loadFixture("salling-most-bought.json").output.suggestions,
+  };
+  /** What most-bought answers for any other `customerId`, or none: the shop's bestsellers. */
+  bestsellers: Record<string, any>[] = [
+    { name: "skyr m vanilje 0,2% fedt u tilsat sukker", productId: "19753", sku: "17924601" },
+  ];
 
   private scripts: Script[] = [];
 
@@ -280,6 +311,8 @@ export class FakeBilka {
     "shop.AvailableDeliveryDates": (request) =>
       this.requireJwt(request) ?? jsonResponse(this.slotAnswer()),
     "shop.SetDeliveryDate": (request) => this.requireJwt(request) ?? this.setSlot(request),
+    "salling.alternatives": (request) => this.alternatives(request),
+    "salling.mostBought": (request) => this.mostBought(request),
     "gigya.login": (request) => this.gigyaLogin(request),
     "gigya.getJWT": (request) => this.gigyaGetJwt(request),
     "shop.Cart": (request) =>
@@ -529,6 +562,48 @@ export class FakeBilka {
   }
 
   /**
+   * Salling's most-bought list, in the captured shape. Like live (2026-11-03),
+   * a known `customerId` gets that account's list with `personalized: "true"`;
+   * any other, or none, gets the bestsellers with `personalized: "false"`.
+   */
+  private mostBought(request: RecordedRequest): Response {
+    const denied = checkSallingKey(request);
+    if (denied) return denied;
+    const limit = Number(request.url.searchParams.get("limit") ?? "50");
+    const own = this.mostBoughtByCustomer[request.url.searchParams.get("customerId") ?? ""];
+    const answer = loadFixture<Record<string, any>>("salling-most-bought.json");
+    answer.output = {
+      suggestions: structuredClone(own ?? this.bestsellers).slice(0, limit),
+      personalized: own === undefined ? "false" : "true",
+    };
+    return jsonResponse(answer);
+  }
+
+  /**
+   * Salling's alternative products for the sku in the path, answered in the
+   * captured shape. Like live (2026-11-03), only the path's sku counts: the
+   * query's `productId`, `sku` and `customerId` change nothing, an unknown
+   * sku gets no suggestions, and a path that isn't a sku is an HTTP 400.
+   */
+  private alternatives(request: RecordedRequest): Response {
+    const denied = checkSallingKey(request);
+    if (denied) return denied;
+    const sku = decodeURIComponent(request.url.pathname.split("/").at(-1) ?? "");
+    if (!/^[1-9]\d*$/.test(sku)) {
+      return jsonResponse({ detail: `Bad Request. ${sku} is not a valid SAP id.` }, 400);
+    }
+    const limit = Number(request.url.searchParams.get("limit") ?? "20");
+    const answer = loadFixture<Record<string, any>>("salling-alternative-products.json");
+    answer.output[0] = {
+      ...answer.output[0],
+      sku,
+      customerId: request.url.searchParams.get("customerId") ?? "",
+      suggestions: structuredClone(this.alternativesBySku[sku] ?? []).slice(0, limit),
+    };
+    return jsonResponse(answer);
+  }
+
+  /**
    * Gigya's login token → JWT exchange. Answers like the capture
    * (`gigya-jwt.json`) for the known token, otherwise with Gigya's error.
    */
@@ -639,6 +714,16 @@ function checkAlgoliaKey(request: RecordedRequest): Response | undefined {
     request.headers.get("x-algolia-api-key") !== ALGOLIA_SEARCH_KEY
   ) {
     return jsonResponse({ message: "Invalid Application-ID or API key", status: 403 }, 403);
+  }
+  return undefined;
+}
+
+function checkSallingKey(request: RecordedRequest): Response | undefined {
+  if (
+    request.method !== "GET" ||
+    request.headers.get("authorization") !== `Bearer ${SALLING_API_KEY}`
+  ) {
+    return jsonResponse({ detail: "Unauthorized" }, 401);
   }
   return undefined;
 }

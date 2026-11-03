@@ -64,6 +64,7 @@ With `@latest`, `npx` checks for a new version each time your MCP client starts 
 | `search_products` | Searches or browses the catalogue at your store: by text, category, this week's leaflet (Bilka Avisen), offers or one mix offer, sorted by price or unit price. | no |
 | `list_categories` | The shop's category tree, one level at a time, with product counts (all, leaflet or offers). | no |
 | `get_product_details` | One product's size, prices, labels, ingredients, allergens and nutrition. | no |
+| `get_alternatives` | Bilka's suggested replacements for a product, e.g. when it's sold out, with prices at your store. | no |
 | `list_stores` | The Bilka stores and the pickup points each one serves. | no |
 | `select_store` | Chooses your store by id or name ("odense"). A local setting; your Bilka account doesn't change. | no |
 | `get_cart` | Your cart: lines, totals, fees, and where and when it's delivered. | yes |
@@ -75,6 +76,7 @@ With `@latest`, `npx` checks for a new version each time your MCP client starts 
 | `set_delivery_slot` | Sets the cart's slot. Bilka reserves nothing until you order. | yes |
 | `get_order_history` | Your past orders, newest first. | yes |
 | `get_order_details` | Everything in one past order, ready to buy again with the cart tools. | yes |
+| `get_most_bought` | What you usually buy, as bilkatogo.dk ranks it for your account, with prices at your store. | yes |
 
 ### What it won't do
 
@@ -93,7 +95,7 @@ To set a default store without asking, set `BILKATOGO_STORE_ID` (e.g. `claude mc
 
 ## Logging in
 
-Search and the store list work without a login. The cart, delivery and order tools need your BilkaToGo login.
+Search, alternatives and the store list work without a login. The cart, delivery, order and most-bought tools need your BilkaToGo login.
 
 | Command | What it does |
 |---|---|
