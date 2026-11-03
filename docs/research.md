@@ -151,6 +151,30 @@ The website's "Billigst" and "Laveste enhedspris" sorts query two other indexes 
 - **Names:** none of the 1,233 facet values fetched contains `"`, `\` or `>` inside a name, or a space at either end of one. The server refuses those characters, so a category can't end the quoted filter value.
 - **A product filed under two parents** would bring the other parent's children into a child facet, so `list_categories` keeps only children whose path starts with the parent's. No such product has been seen.
 
+### Salling Group recommendations API (checked live on 2026-11-03)
+
+bilkatogo.dk gets its "most bought" and "alternatives" product lists from `https://api.sallinggroup.com/v2/recommendations/…` (in the site code: `utils/salling-api-util.js`). These are the issues #23 and #24.
+
+- **Auth is a shared key, not a login.** Each request sends `Authorization: Bearer 45c0740c-f037-4915-89c0-171f6edf9fd3`. That key is built into the site's JavaScript (`NUXT_ENV_SALLING_API_BEARER_TOKEN`) and is the same for every visitor, like the Algolia search key. Without it the API answers HTTP 401. The site's Origin, Referer and browser User-Agent headers aren't needed.
+- **`customerId` is the shop's `tid`.** It's a UUID, and the shop API returns it as `tid` next to `eid`/`uid` in every response (checked against `Profile`). It isn't the Gigya UID, which is the JWT's `sub`. `src/scrub.ts` removes `tid` before anything reaches the model.
+- **Anyone with a `tid` can read that person's purchase history.** The shared key plus a `tid` is enough to get most-bought, with no login. So treat `tid` as a secret: never show it to the model, and never put it in logs, issues or test fixtures.
+- **Responses list products, not prices.** Each suggestion has `name`, `productId`, `sku` and `eans`. `productId` is the Algolia `objectID` (checked: 72008 is "Bananer 4 pak øko"). To show prices or stock, fetch the products from Algolia.
+
+**Most bought:** `GET /v2/recommendations/most-bought/bilkatogo?customerId=<tid>&fields=productId&limit=50`. The site's limit is 50, and it can also send `brand`, `onSale` and `shopCategoryPath`.
+
+- The answer is `{output: {suggestions: [...], personalized: "true"|"false"}, model_name: "MostBoughtProductsModelV1", model_version}`. `personalized` is a string.
+- Without `customerId` the call still succeeds, but returns the shop-wide bestsellers with `personalized: "false"`. A tool must check the flag, or it will present the general bestsellers as the account's own.
+
+**Alternatives:** `GET /v2/recommendations/alternative-products/bilkatogo/<sku>?limit=20`.
+
+- **The path takes the sku, which Salling calls the SAP id.** The site also sends `productId`, `sku` and `customerId` as query parameters, but they change nothing. With `productId=1` and the right sku in the path, the answer was the same. With a product id in the path the list is empty, and `/0` answers HTTP 400 with `"0 is not a valid SAP id."`.
+- **The sku is Algolia's `article` field** (the same value is in `erp_product_id`). It isn't returned unless asked for by name in `attributesToRetrieve`. So product id → sku takes one Algolia lookup.
+- The answer is `{output: [{sku, customerId, suggestions: [...], personalized}], model_name: "PQEBasedAlternativeProducts", model_version}`. Each suggestion also has a `score` (0.49 to 0.76 for bananas). It echoes `customerId` back.
+- Sending `customerId` made no difference: the same list either way, `personalized: "false"`. So a tool can leave it out, which keeps it working with no login and keeps the `tid` out of the request and the response.
+- The site supports `excludeOwnCategory`, `onlyOwnCategory`, `onSale` and `shopCategoryPath` as well. These haven't been tested.
+
+**Not explored yet:** the site also calls `trending-products/bilkatogo` (with `days`), `complementary-products/bilkatogo/<sku>`, `next-product/bilkatogo` (POST with `productIds`) and `search-rerankings/bilkatogo`.
+
 Notes:
 - Prices are in øre, so divide by 100.
 - Search results depend on the store. Without a store id you get products the chosen store doesn't stock.
