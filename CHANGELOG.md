@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/tkjaergaard/bilkatogo-mcp/compare/v0.1.1...v0.2.0) (2026-11-03)
+
+
+### Features
+
+* add get_alternatives and get_most_bought ([#27](https://github.com/tkjaergaard/bilkatogo-mcp/issues/27)) ([6852508](https://github.com/tkjaergaard/bilkatogo-mcp/commit/6852508abddf027a4ff616f55307fb4adeae2ebd))
+
 ## [0.1.1](https://github.com/tkjaergaard/bilkatogo-mcp/compare/v0.1.0...v0.1.1) (2026-11-02)
 
 
