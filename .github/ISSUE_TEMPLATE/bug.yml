@@ -1,0 +1,30 @@
+name: Bug report
+description: Something doesn't work as described.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please leave out login tokens, passwords, names, addresses, phone numbers and order details. Replace them with `<redacted>`.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you got (the tool name and its error message help most).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: bilkatogo-mcp version
+      placeholder: e.g. 0.1.1
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      placeholder: e.g. Claude Desktop, Claude Code
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      placeholder: output of `node --version`
