@@ -1,5 +1,6 @@
-// A fake Bilka backend for tests: it answers as Algolia, SAP Gigya and the
-// BilkaToGo shop API, chosen by request URL. Pass `bilka.fetch` to the server
+// A fake Bilka backend for tests: it answers as Algolia, SAP Gigya, the
+// BilkaToGo shop API and Salling Group's recommendations API, chosen by
+// request URL. Pass `bilka.fetch` to the server
 // factory in place of the real `fetch`.
 //
 // Each request is matched to a route name (see `routeOf`). A scripted

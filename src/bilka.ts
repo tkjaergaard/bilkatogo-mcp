@@ -678,13 +678,13 @@ export function createBilkaClient(options: {
 
   /**
    * Salling's suggestions as products from the index, in Salling's order,
-   * each with its suggestion. Suggestions the index lacks are left out.
+   * each with Salling's score. Suggestions the index lacks are left out.
    */
   async function suggestedProducts(
     what: string,
     suggestions: unknown,
     storeId: string | undefined,
-  ): Promise<{ product: Product; suggestion: Record<string, unknown> }[]> {
+  ): Promise<{ product: Product; score: unknown }[]> {
     const valid = (Array.isArray(suggestions) ? suggestions : [])
       .filter(isRecord)
       .filter((s) => PRODUCT_ID_PATTERN.test(String(s.productId ?? "")));
@@ -699,7 +699,7 @@ export function createBilkaClient(options: {
     );
     return valid.flatMap((suggestion, index) => {
       const record = records[index];
-      return record ? [{ product: toProduct(record, storeId), suggestion }] : [];
+      return record ? [{ product: toProduct(record, storeId), score: suggestion.score }] : [];
     });
   }
 
@@ -785,17 +785,7 @@ export function createBilkaClient(options: {
       // naming one store keeps the other stores' price blocks out.
       const attributes = PRODUCT_ATTRIBUTES.concat(DETAIL_ATTRIBUTES);
       if (storeId !== undefined) attributes.push(`storeData.${storeId}`);
-      const data = await algolia("Product lookup", "/1/indexes/*/objects", {
-        requests: [
-          {
-            indexName: ALGOLIA_PRODUCT_INDEX,
-            objectID: productId,
-            attributesToRetrieve: attributes,
-          },
-        ],
-      });
-      const results = arrayField(data, "results", "Product lookup answered without results");
-      const [record] = results as (AlgoliaProduct | null)[];
+      const [record] = await lookUpProducts("Product lookup", [productId], attributes);
       return record ? toProductDetails(record, storeId) : null;
     },
 
@@ -805,7 +795,8 @@ export function createBilkaClient(options: {
       const [record] = await lookUpProducts(what, [productId], ["objectID", "article"]);
       if (!record) return null;
       const sku = text(record.article);
-      if (sku === null || !/^\d+$/.test(sku)) {
+      // Salling refuses 0 ("not a valid SAP id"), so a leading zero counts as none.
+      if (sku === null || !/^[1-9]\d*$/.test(sku)) {
         throw new BilkaError(
           `${what} failed: the catalogue has no article number for ${productId}`,
         );
@@ -819,10 +810,9 @@ export function createBilkaClient(options: {
       const [output] = Array.isArray(data.output) ? data.output : [];
       if (!isRecord(output)) throw new BilkaError(`${what} answered without suggestions`);
       const products = await suggestedProducts(what, output.suggestions, storeId);
-      return products.map(({ product, suggestion }) => ({
+      return products.map(({ product, score }) => ({
         ...product,
-        score:
-          typeof suggestion.score === "number" ? Math.round(suggestion.score * 100) / 100 : null,
+        score: typeof score === "number" ? Math.round(score * 100) / 100 : null,
       }));
     },
 

@@ -457,9 +457,10 @@ export function createServer(config: ServerConfig): McpServer {
       description: [
         "Products Bilka suggests in place of one, best match first: for when a product is sold",
         "out, discontinued or too dear. These are the suggestions bilkatogo.dk shows, with prices",
-        "in DKK and stock at the configured store, as in search_products. `score` is how close a",
-        "match Bilka rates each one, about 0 to 1. The suggestions are the same for every",
-        "customer, and a suggestion may not be stocked at the store, so check `in_stock`.",
+        "in DKK and stock at the configured store, when one is selected, as in search_products.",
+        "`score` is how close a match Bilka rates each one, about 0 to 1. The suggestions are",
+        "the same for every customer, and a suggestion may not be stocked at the store, so",
+        "check `in_stock`.",
         "Needs no login.",
         untrustedText("Product names and offer texts"),
       ].join(" "),
@@ -502,9 +503,9 @@ export function createServer(config: ServerConfig): McpServer {
       description: [
         "The products the user buys most on BilkaToGo, most bought first, as bilkatogo.dk ranks",
         "them for the account: a starting point for the weekly shop or a reorder. Prices are in",
-        "DKK with stock at the configured store, as in search_products. When Bilka has no",
-        "purchase history for the account, `personalized` is false and the list is the shop's",
-        "bestsellers instead, which the answer's `note` says; don't present those as the",
+        "DKK and stock at the configured store, when one is selected, as in search_products.",
+        "When Bilka doesn't personalise the list, `personalized` is false and the list is the",
+        "shop's bestsellers instead, which the answer's `note` says; don't present those as the",
         "user's own. Needs a BilkaToGo login.",
         untrustedText("Product names and offer texts"),
       ].join(" "),
@@ -528,8 +529,8 @@ export function createServer(config: ServerConfig): McpServer {
         products,
         ...(!personalized && {
           note:
-            "Bilka has no purchase history for this account, so these are the shop's " +
-            "bestsellers, not the account's own.",
+            "Bilka didn't personalise this list, so these are the shop's bestsellers, " +
+            "not the account's own.",
         }),
       });
     },

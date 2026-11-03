@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { FakeBilka, LOGIN_TOKEN, SALLING_API_KEY } from "./support/fake-bilka.ts";
+import { FakeBilka, jsonResponse, LOGIN_TOKEN, SALLING_API_KEY } from "./support/fake-bilka.ts";
 import { connect } from "./support/harness.ts";
 
 const withLoginToken = { credentials: { env: { BILKATOGO_LOGIN_TOKEN: LOGIN_TOKEN } } };
@@ -72,4 +72,19 @@ test("get_most_bought needs a login and asks Salling nothing without one", async
   expect(result.isError).toBe(true);
   expect(result.text).toContain("No BilkaToGo login is configured");
   expect(bilka.calls("salling.*")).toEqual([]);
+});
+
+test("get_most_bought reports a Salling failure without the tid or Salling's text", async () => {
+  const bilka = new FakeBilka();
+  bilka.script("salling.mostBought", () =>
+    jsonResponse({ detail: "customerId test-tid rejected" }, 503),
+  );
+  const { callTool, warnings } = await connect({ ...withLoginToken, bilka });
+
+  const result = await callTool("get_most_bought");
+
+  expect(result.isError).toBe(true);
+  expect(result.text).toContain("Most bought products failed with HTTP 503");
+  expect(result.text).not.toContain("test-tid");
+  expect(warnings.join("\n")).not.toContain("test-tid");
 });
