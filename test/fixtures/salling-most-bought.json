@@ -1,0 +1,22 @@
+{
+  "output": {
+    "suggestions": [
+      { "name": "bananer", "productId": "18381", "sku": "89300500105", "eans": ["5700000000003"] },
+      {
+        "name": "et produkt indekset ikke kender",
+        "productId": "999999",
+        "sku": "99999901",
+        "eans": ["5700000000001"]
+      },
+      {
+        "name": "skyr m vanilje 0,2% fedt u tilsat sukker",
+        "productId": "19753",
+        "sku": "17924601",
+        "eans": ["5711953011399"]
+      }
+    ],
+    "personalized": "true"
+  },
+  "model_version": "2026-11-02-06-31-47",
+  "model_name": "MostBoughtProductsModelV1"
+}

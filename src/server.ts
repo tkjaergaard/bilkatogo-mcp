@@ -6,6 +6,7 @@ import packageJson from "../package.json" with { type: "json" };
 import { createSession } from "./auth.ts";
 import {
   CATEGORY_PATH_PATTERN,
+  type ClientMemory,
   createBilkaClient,
   MAX_CATEGORY_LEVELS,
   MIX_OFFER_ID_PATTERN,
@@ -89,6 +90,8 @@ export type ServerConfig = {
 // shares one JWT and one store selection, and reads each file at most once.
 type ConfigState = {
   session: Session;
+  /** What the Bilka client keeps between calls, such as the account id. */
+  memory: ClientMemory;
   warn: (line: string) => void;
   /** The store id tools use, unvalidated: explicit, selected, env, then login file. */
   storeId: () => Promise<string | undefined>;
@@ -116,6 +119,7 @@ function stateFor(config: ServerConfig): ConfigState {
     let fallback: Promise<string | undefined> | undefined;
     state = {
       session,
+      memory: {},
       warn,
       storeId: async () => {
         if (config.storeId !== undefined) return config.storeId;
@@ -182,7 +186,11 @@ export function createServer(config: ServerConfig): McpServer {
   );
 
   const state = stateFor(config);
-  const bilka = createBilkaClient({ fetch: config.fetch, session: state.session });
+  const bilka = createBilkaClient({
+    fetch: config.fetch,
+    session: state.session,
+    memory: state.memory,
+  });
 
   // For the cart setters: one line's absolute quantity.
   const quantitySchema = z
@@ -439,6 +447,92 @@ export function createServer(config: ServerConfig): McpServer {
         );
       }
       return jsonResult({ store_id: storeId ?? null, product });
+    },
+  );
+
+  server.registerTool(
+    "get_alternatives",
+    {
+      title: "Get alternatives to a BilkaToGo product",
+      description: [
+        "Products Bilka suggests in place of one, best match first: for when a product is sold",
+        "out, discontinued or too dear. These are the suggestions bilkatogo.dk shows, with prices",
+        "in DKK and stock at the configured store, when one is selected, as in search_products.",
+        "`score` is how close a match Bilka rates each one, about 0 to 1. The suggestions are",
+        "the same for every customer, and a suggestion may not be stocked at the store, so",
+        "check `in_stock`.",
+        "Needs no login.",
+        untrustedText("Product names and offer texts"),
+      ].join(" "),
+      inputSchema: z.object({
+        product_id: productIdSchema,
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(20)
+          .default(10)
+          .describe("How many alternatives to ask for, 1 to 20."),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ product_id, limit }) => {
+      const storeId = optionalStoreId(await state.storeId());
+      const alternatives = await bilka.getAlternatives({ productId: product_id, storeId, limit });
+      if (alternatives === null) {
+        throw new Error(
+          `Product ${product_id} was not found in the BilkaToGo catalogue. ` +
+            "Use search_products to find current product ids.",
+        );
+      }
+      return jsonResult({
+        store_id: storeId ?? null,
+        product_id,
+        alternatives,
+        ...(alternatives.length === 0 && {
+          note: "Bilka has no alternatives for this product. Try search_products instead.",
+        }),
+      });
+    },
+  );
+
+  server.registerTool(
+    "get_most_bought",
+    {
+      title: "Get what the user usually buys on BilkaToGo",
+      description: [
+        "The products the user buys most on BilkaToGo, most bought first, as bilkatogo.dk ranks",
+        "them for the account: a starting point for the weekly shop or a reorder. Prices are in",
+        "DKK and stock at the configured store, when one is selected, as in search_products.",
+        "When Bilka doesn't personalise the list, `personalized` is false and the list is the",
+        "shop's bestsellers instead, which the answer's `note` says; don't present those as the",
+        "user's own. Needs a BilkaToGo login.",
+        untrustedText("Product names and offer texts"),
+      ].join(" "),
+      inputSchema: z.object({
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .default(20)
+          .describe("How many products to ask for, 1 to 50."),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ limit }) => {
+      const storeId = optionalStoreId(await state.storeId());
+      const { personalized, products } = await bilka.getMostBought({ storeId, limit });
+      return jsonResult({
+        store_id: storeId ?? null,
+        personalized,
+        products,
+        ...(!personalized && {
+          note:
+            "Bilka didn't personalise this list, so these are the shop's bestsellers, " +
+            "not the account's own.",
+        }),
+      });
     },
   );
 

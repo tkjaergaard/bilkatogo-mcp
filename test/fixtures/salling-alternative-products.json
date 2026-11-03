@@ -1,0 +1,34 @@
+{
+  "output": [
+    {
+      "sku": "89300500105",
+      "customerId": "",
+      "suggestions": [
+        {
+          "name": "skyr m vanilje 0,2% fedt u tilsat sukker",
+          "productId": "19753",
+          "sku": "17924601",
+          "score": 0.7588609993457794,
+          "eans": ["5711953011399"]
+        },
+        {
+          "name": "et produkt indekset ikke kender",
+          "productId": "999999",
+          "sku": "99999901",
+          "score": 0.7493934810161591,
+          "eans": ["5700000000001"]
+        },
+        {
+          "name": "skyr m vanilje 0,2 % fedt øko",
+          "productId": "128298",
+          "sku": "10604691",
+          "score": 0.6263009071350099,
+          "eans": ["5700000000002"]
+        }
+      ],
+      "personalized": "false"
+    }
+  ],
+  "model_version": "2026-11-02-06-24-07",
+  "model_name": "PQEBasedAlternativeProducts"
+}

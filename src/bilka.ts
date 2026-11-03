@@ -1,5 +1,5 @@
-// The Bilka client: one narrow interface in domain terms over the three Bilka
-// hosts (Algolia, Gigya, the BilkaToGo shop API). Callers never see raw HTTP
+// The Bilka client: one narrow interface in domain terms over the four Bilka
+// hosts (Algolia, Gigya, the BilkaToGo shop API, Salling Group's API). Callers never see raw HTTP
 // or øre.
 
 import packageJson from "../package.json" with { type: "json" };
@@ -36,6 +36,12 @@ const ALGOLIA_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_pricesort";
 const ALGOLIA_UNIT_PRICE_SORT_INDEX = "prod_r_BILKATOGO_PRODUCT_uompricesort";
 
 export const SHOP_HOST = "https://api.bilkatogo.dk";
+
+// Salling Group's API, where bilkatogo.dk gets its product recommendations.
+const SALLING_HOST = "https://api.sallinggroup.com";
+// The shared key bilkatogo.dk ships to every browser for that API: it isn't a
+// login and names no account (docs/research.md §3).
+const SALLING_API_KEY = "45c0740c-f037-4915-89c0-171f6edf9fd3";
 
 // Sent on every request, so Bilka can see what the traffic is and who to
 // contact. Never a browser's user agent: the server doesn't pose as one.
@@ -127,6 +133,12 @@ export type Product = {
    * 35,00"; its text is in `offer`. Null when there's none or no store was given.
    */
   mix: Mix | null;
+};
+
+/** A product Salling suggests in place of another. */
+export type Alternative = Product & {
+  /** How close a match Salling rates it, about 0 to 1, to two decimals. Null when Salling gives none. */
+  score: number | null;
 };
 
 /** A "buy N of these products for a set price" offer at one store. */
@@ -280,6 +292,26 @@ export type BilkaClient = {
     productId: string;
     storeId: string | undefined;
   }): Promise<ProductDetails | null>;
+  /**
+   * The products Salling suggests in place of one, best match first, with the
+   * store's prices when `storeId` is given. Suggestions the product index
+   * doesn't hold are left out. Null when the index has no such product.
+   * Needs no login.
+   */
+  getAlternatives(request: {
+    productId: string;
+    storeId: string | undefined;
+    limit: number;
+  }): Promise<Alternative[] | null>;
+  /**
+   * The products the account buys most, as Salling ranks them, with the
+   * store's prices when `storeId` is given. `personalized` is false when
+   * Salling answered with the shop's bestsellers instead. Needs the login.
+   */
+  getMostBought(request: {
+    storeId: string | undefined;
+    limit: number;
+  }): Promise<{ personalized: boolean; products: Product[] }>;
   /** Bilka's stores, one entry per store id. Public: needs no login. */
   listStores(): Promise<Store[]>;
   /** The logged-in cart, with personal data already scrubbed. */
@@ -505,8 +537,18 @@ export async function passwordLogin(
   return { rejected: { status: response.status, body: { errorCode: body.errorCode } } };
 }
 
-export function createBilkaClient(options: { fetch: typeof fetch; session: Session }): BilkaClient {
-  const { fetch, session } = options;
+/** What a client keeps between calls. Share one across clients for the same account. */
+export type ClientMemory = {
+  /** The account's `tid`, Salling's customerId, once read. A secret: never returned or logged. */
+  customerId?: Promise<string>;
+};
+
+export function createBilkaClient(options: {
+  fetch: typeof fetch;
+  session: Session;
+  memory?: ClientMemory;
+}): BilkaClient {
+  const { fetch, session, memory = {} } = options;
 
   async function requestJson(what: string, url: string, init: RequestInit): Promise<unknown> {
     return okJson(what, await send(fetch, what, url, init));
@@ -572,6 +614,92 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
         "x-algolia-api-key": ALGOLIA_SEARCH_KEY,
       },
       body: JSON.stringify(body),
+    });
+  }
+
+  /** Product index records by id, in the same order; null for an id the index lacks. */
+  async function lookUpProducts(
+    what: string,
+    productIds: string[],
+    attributesToRetrieve: string[],
+  ): Promise<(AlgoliaProduct | null)[]> {
+    if (productIds.length === 0) return [];
+    const data = await algolia(what, "/1/indexes/*/objects", {
+      requests: productIds.map((objectID) => ({
+        indexName: ALGOLIA_PRODUCT_INDEX,
+        objectID,
+        attributesToRetrieve,
+      })),
+    });
+    const results = arrayField(data, "results", `${what} answered without results`);
+    return productIds.map((_, index) => {
+      const record = results[index];
+      return isRecord(record) ? (record as AlgoliaProduct) : null;
+    });
+  }
+
+  /**
+   * The account's `tid`, which Salling's API takes as `customerId`. It comes
+   * in every shop answer, and the scrub removes it, so the cart is read
+   * unscrubbed and only the `tid` is kept. With the shared key it's enough to
+   * read the account's purchases, so it never leaves this client except to
+   * Salling. Read once; a failed read is tried again next time.
+   */
+  function customerId(): Promise<string> {
+    memory.customerId ??= (async () => {
+      const what = "Reading the account id";
+      const cart = await shopJson(what, "v6/Cart", {}, { method: "GET" }, { scrub: false });
+      const tid = text(cart.tid);
+      if (tid === null) throw new BilkaError(`${what} failed: Bilka's answer has no account id`);
+      return tid;
+    })().catch((error: unknown) => {
+      memory.customerId = undefined;
+      throw error;
+    });
+    return memory.customerId;
+  }
+
+  /**
+   * A GET to Salling Group's API with the shared key. Never sends the
+   * account's id, and never quotes Salling's answer in an error.
+   */
+  async function salling(
+    what: string,
+    path: string,
+    params: Record<string, string>,
+  ): Promise<Record<string, unknown>> {
+    const data = await requestJson(what, `${SALLING_HOST}${path}?${new URLSearchParams(params)}`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${SALLING_API_KEY}`, accept: "application/json" },
+    });
+    if (!isRecord(data)) throw new BilkaError(`${what} answered with something unexpected`);
+    return data;
+  }
+
+  /**
+   * Salling's suggestions as products from the index, in Salling's order,
+   * each with Salling's score. Suggestions the index lacks are left out.
+   */
+  async function suggestedProducts(
+    what: string,
+    suggestions: unknown,
+    storeId: string | undefined,
+  ): Promise<{ product: Product; score: unknown }[]> {
+    const valid = (Array.isArray(suggestions) ? suggestions : [])
+      .filter(isRecord)
+      .filter((s) => PRODUCT_ID_PATTERN.test(String(s.productId ?? "")));
+    const attributes =
+      storeId === undefined
+        ? PRODUCT_ATTRIBUTES
+        : PRODUCT_ATTRIBUTES.concat(`storeData.${storeId}`);
+    const records = await lookUpProducts(
+      what,
+      valid.map((s) => String(s.productId)),
+      attributes,
+    );
+    return valid.flatMap((suggestion, index) => {
+      const record = records[index];
+      return record ? [{ product: toProduct(record, storeId), score: suggestion.score }] : [];
     });
   }
 
@@ -657,18 +785,52 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
       // naming one store keeps the other stores' price blocks out.
       const attributes = PRODUCT_ATTRIBUTES.concat(DETAIL_ATTRIBUTES);
       if (storeId !== undefined) attributes.push(`storeData.${storeId}`);
-      const data = await algolia("Product lookup", "/1/indexes/*/objects", {
-        requests: [
-          {
-            indexName: ALGOLIA_PRODUCT_INDEX,
-            objectID: productId,
-            attributesToRetrieve: attributes,
-          },
-        ],
-      });
-      const results = arrayField(data, "results", "Product lookup answered without results");
-      const [record] = results as (AlgoliaProduct | null)[];
+      const [record] = await lookUpProducts("Product lookup", [productId], attributes);
       return record ? toProductDetails(record, storeId) : null;
+    },
+
+    async getAlternatives({ productId, storeId, limit }) {
+      const what = "Alternative products";
+      // Salling knows products by sku (its "SAP id"): the index's `article`.
+      const [record] = await lookUpProducts(what, [productId], ["objectID", "article"]);
+      if (!record) return null;
+      const sku = text(record.article);
+      // Salling refuses 0 ("not a valid SAP id"), so a leading zero counts as none.
+      if (sku === null || !/^[1-9]\d*$/.test(sku)) {
+        throw new BilkaError(
+          `${what} failed: the catalogue has no article number for ${productId}`,
+        );
+      }
+      // No customerId: it changes nothing here, and Salling would echo it back.
+      const data = await salling(
+        what,
+        `/v2/recommendations/alternative-products/bilkatogo/${sku}`,
+        { limit: String(limit) },
+      );
+      const [output] = Array.isArray(data.output) ? data.output : [];
+      if (!isRecord(output)) throw new BilkaError(`${what} answered without suggestions`);
+      const products = await suggestedProducts(what, output.suggestions, storeId);
+      return products.map(({ product, score }) => ({
+        ...product,
+        score: typeof score === "number" ? Math.round(score * 100) / 100 : null,
+      }));
+    },
+
+    async getMostBought({ storeId, limit }) {
+      const what = "Most bought products";
+      const data = await salling(what, "/v2/recommendations/most-bought/bilkatogo", {
+        customerId: await customerId(),
+        fields: "productId",
+        limit: String(limit),
+      });
+      const output = data.output;
+      if (!isRecord(output)) throw new BilkaError(`${what} answered without suggestions`);
+      const products = await suggestedProducts(what, output.suggestions, storeId);
+      return {
+        // A string live ("true"/"false"); anything else counts as not personal.
+        personalized: output.personalized === "true" || output.personalized === true,
+        products: products.map(({ product }) => product),
+      };
     },
 
     async listStores() {
@@ -713,8 +875,8 @@ export function createBilkaClient(options: { fetch: typeof fetch; session: Sessi
 
     async setDeliveryPlace(placeId) {
       const what = "Changing the delivery place";
-      // Read unscrubbed on purpose, and the only such read: switching to home
-      // delivery means sending the account's own street and address id
+      // Read unscrubbed on purpose, like the account id (`customerId`): switching
+      // to home delivery means sending the account's own street and address id
       // (`dawa_uid`) back to Bilka, as the website does. They go from this
       // answer straight into the request and are never returned or logged.
       const list = await shopJson(
@@ -935,6 +1097,8 @@ function categoryFilter(path: string): string {
 // The Algolia product record fields this client reads. Real records carry many more.
 type AlgoliaProduct = {
   objectID: string;
+  /** The sku, which Salling's API calls the SAP id. */
+  article?: string;
   name?: string;
   brand?: string;
   netcontent?: string;
