@@ -67,6 +67,7 @@ test("set_cart_quantities applies the items in order and returns each outcome an
     ],
     ok: 3,
     failed: 0,
+    browser_note: expect.stringMatching(/bilkatogo\.dk is open in the user's browser/),
     cart: {
       currency: "DKK",
       total: 178.51,
@@ -230,6 +231,23 @@ test("set_cart_quantities carries on past a failed item", async () => {
   ]);
 });
 
+test("set_cart_quantities warns about the website's copy of the cart only when a line was removed", async () => {
+  const { callTool, bilka } = await connect(withLoginToken);
+  bilka.cart = groceryCart();
+
+  const added = await callTool("set_cart_quantities", {
+    items: [{ product_id: "900101", quantity: 4 }],
+  });
+  expect(added.json).not.toHaveProperty("browser_note");
+
+  bilka.failTimes("shop.ChangeLineCount", 4, 503);
+  const failedRemoval = await callTool("set_cart_quantities", {
+    items: [{ product_id: "900102", quantity: 0 }],
+  });
+  expect(failedRemoval.json.failed).toBe(1);
+  expect(failedRemoval.json).not.toHaveProperty("browser_note");
+});
+
 test("set_cart_quantities keeps the item outcomes when reading the cart afterwards fails", async () => {
   const { callTool, bilka } = await connect(withLoginToken);
   bilka.cart = groceryCart();
@@ -250,6 +268,7 @@ test("set_cart_quantities keeps the item outcomes when reading the cart afterwar
     ],
     ok: 2,
     failed: 0,
+    browser_note: expect.any(String),
     cart: null,
     cart_error: "Cart read failed with HTTP 503",
   });
