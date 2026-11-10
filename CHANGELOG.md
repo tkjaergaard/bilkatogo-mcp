@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/tkjaergaard/bilkatogo-mcp/compare/v0.2.0...v0.2.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* warn that an open bilkatogo.dk tab can undo cart removals ([#30](https://github.com/tkjaergaard/bilkatogo-mcp/issues/30)) ([9df8f82](https://github.com/tkjaergaard/bilkatogo-mcp/commit/9df8f827c46b2dfdc7357bd62d8cc9d6dfd0b6f8))
+
 ## [0.2.0](https://github.com/tkjaergaard/bilkatogo-mcp/compare/v0.1.1...v0.2.0) (2026-11-03)
 
 
