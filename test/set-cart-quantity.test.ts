@@ -13,6 +13,7 @@ test("set_cart_quantity sets a line to an absolute quantity and returns the line
   const result = await callTool("set_cart_quantity", { product_id: "900101", quantity: 5 });
 
   expect(result.isError).toBe(false);
+  expect(result.json).not.toHaveProperty("browser_note");
   const [change] = bilka.calls("shop.ChangeLineCount");
   if (!change) throw new Error("expected a ChangeLineCount call");
   expect(change.method).toBe("GET");
@@ -79,6 +80,8 @@ test("set_cart_quantity with 0 removes the line", async () => {
     "900102",
   ]);
   expect(result.json.cart.total).toBe(90.87);
+  // An open bilkatogo.dk tab can merge the line back in (issue #29).
+  expect(result.json.browser_note).toMatch(/put removed lines back/);
 });
 
 test("set_cart_quantity adds a product that isn't in the cart yet", async () => {
@@ -206,6 +209,9 @@ test("set_cart_quantity rejects an answer without the line's new quantity", asyn
 
   expect(result.isError).toBe(true);
   expect(result.text).not.toMatch(/temporary/i);
+  // What Bilka answers for a product it no longer sells (issue #29).
+  expect(result.text).toMatch(/discontinued or not sold at the cart's store/);
+  expect(result.text).toMatch(/search_products/);
 });
 
 test("set_cart_quantity explains an expired login", async () => {

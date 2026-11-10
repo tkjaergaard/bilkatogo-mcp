@@ -34,6 +34,17 @@ const ITEM_GAP_MS = 250;
  */
 type CartAfter = { cart: Cart | CartSummary } | { cart: null; cart_error: string };
 
+/**
+ * Added to a result that removed a line. The website keeps its own copy of the
+ * cart (the `cart` cookie) and merges it into the account's cart each time a
+ * page loads, so an open bilkatogo.dk tab can put removed lines back
+ * (issue #29, docs/research.md §3).
+ */
+const REMOVAL_NOTE =
+  "If bilkatogo.dk is open in the user's browser, it can put removed lines back: the website " +
+  "merges its own copy of the cart into the account the next time a page loads there. Tell " +
+  "the user to check the cart on the website and remove any line that came back there.";
+
 /** What happened to one item of a `set_cart_quantities` batch. */
 type ItemOutcome = {
   product_id: string;
@@ -65,6 +76,7 @@ export async function setCartQuantity(bilka: BilkaClient, { product_id, quantity
     line: { product_id, name, quantity: set, unit_price },
     requested_quantity: quantity,
     ...notes,
+    ...(set === 0 ? { browser_note: REMOVAL_NOTE } : {}),
     ...after,
   };
 }
@@ -101,10 +113,12 @@ export async function setCartQuantities(
     stopReason = applied.stopReason;
   }
   const ok = outcomes.filter((outcome) => outcome.status === "ok").length;
+  const removed = outcomes.some((outcome) => outcome.status === "ok" && outcome.quantity === 0);
   return {
     items: outcomes,
     ok,
     failed: outcomes.length - ok,
+    ...(removed ? { browser_note: REMOVAL_NOTE } : {}),
     ...(await cartAfterChange(bilka, full)),
   };
 }

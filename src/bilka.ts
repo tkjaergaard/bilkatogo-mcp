@@ -960,7 +960,10 @@ export function createBilkaClient(options: {
 function toLineChange(what: string, productId: string, data: Record<string, unknown>): LineChange {
   const quantity = data.productAmount;
   if (typeof quantity !== "number" || String(data.productId) !== productId) {
-    throw new BilkaError(`${what} got an answer from Bilka without the line's new quantity`);
+    throw new BilkaError(
+      `${what} failed: Bilka's answer has no quantity for product ${productId}, which usually ` +
+        "means the product is discontinued or not sold at the cart's store",
+    );
   }
   const unitPrice = typeof data.productUnitPrice === "number" ? data.productUnitPrice : undefined;
   return {

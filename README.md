@@ -85,6 +85,10 @@ With `@latest`, `npx` checks for a new version each time your MCP client starts 
 - **Change your cart without the client knowing.** Every tool that changes the cart is flagged destructive, so your MCP client can ask you first. Quantities are absolute: setting 2 means 2, not 2 more.
 - **Hammer Bilka.** Requests stay at the pace of one person shopping.
 
+### Using bilkatogo.dk at the same time
+
+The website keeps its own copy of your cart and merges it into your account every time a page loads. So if bilkatogo.dk is open in your browser, reloading it or clicking to another page can **bring back lines the assistant removed**. Lines it added aren't affected. When the assistant removes something, it reminds you to check the cart on the website, and anything that came back can be removed there.
+
 ## Your store
 
 The assistant calls `list_stores` and `select_store` for you. A pickup-point name picks the store that serves it, and when a name matches several stores, it asks you which one. The choice is saved in `~/.config/bilkatogo-mcp/settings.json`.
